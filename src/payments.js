@@ -92,7 +92,9 @@ async function capturePayPalOrder(orderId) {
     body: '{}'
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok && data?.name !== 'ORDER_ALREADY_CAPTURED') throw new Error(`PayPal capture HTTP ${response.status}`);
+  const alreadyCaptured = Array.isArray(data?.details) && data.details.some(item => item?.issue === 'ORDER_ALREADY_CAPTURED');
+  if (!response.ok && !alreadyCaptured) throw new Error(`PayPal capture HTTP ${response.status}`);
+  if (alreadyCaptured) return { status: 'COMPLETED', name: 'ORDER_ALREADY_CAPTURED' };
   return data;
 }
 
