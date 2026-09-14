@@ -25,6 +25,22 @@ function normalizeProviderRow(row) {
   };
 }
 
+function safeCounter(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : null;
+}
+
+function orderTelemetry(raw = {}) {
+  const data = raw?.data && typeof raw.data === 'object' ? raw.data : raw;
+  const providerStatus = data?.status ?? data?.state ?? raw?.status ?? raw?.state ?? null;
+  return {
+    start_counter: safeCounter(data?.start_count ?? data?.start_counter ?? data?.start ?? raw?.start_count ?? raw?.start_counter),
+    remains: safeCounter(data?.remains ?? data?.remaining ?? data?.remain ?? raw?.remains ?? raw?.remaining),
+    provider_status: providerStatus === null || providerStatus === undefined ? null : String(providerStatus).slice(0, 80)
+  };
+}
+
 async function getSupplier(id) {
   const [rows] = await pool.query('SELECT * FROM supplier_servers WHERE id=? LIMIT 1', [Number(id)]);
   return normalizeProviderRow(rows[0]);
@@ -262,7 +278,7 @@ async function submitOrderToSupplier({ serviceId, targetUrl, quantity }) {
 
   const remoteId = data.order ?? data.id ?? data.order_id ?? data.data?.order_id ?? data.data?.id;
   if (!remoteId) throw new Error('Fornecedor não retornou o ID do pedido');
-  return { supplier, remoteId: String(remoteId), raw: data };
+  return { supplier, remoteId: String(remoteId), raw: data, telemetry: orderTelemetry(data) };
 }
 
 async function fetchSupplierOrderStatus(supplierId, remoteOrderId) {
@@ -297,6 +313,7 @@ function mapSupplierStatus(value) {
 
 async function applyRemoteStatus(orderId, supplierId, status, raw = {}) {
   const conn = await pool.getConnection();
+  const telemetry = orderTelemetry(raw);
   try {
     await conn.beginTransaction();
     const [rows] = await conn.query('SELECT * FROM orders WHERE id=? FOR UPDATE', [Number(orderId)]);
@@ -311,11 +328,20 @@ async function applyRemoteStatus(orderId, supplierId, status, raw = {}) {
         'INSERT INTO wallet_transactions (user_id,type,amount,reference_type,reference_id,description) VALUES (?,"refund",?,"order",?,?)',
         [order.user_id, order.amount, order.id, `Devolução automática do pedido #${order.id} cancelado pelo fornecedor`]
       );
-      await conn.query('UPDATE orders SET status="cancelled",funds_refunded=1 WHERE id=?', [order.id]);
+      await conn.query(
+        'UPDATE orders SET status="cancelled",funds_refunded=1,start_counter=COALESCE(?,start_counter),remains=COALESCE(?,remains),provider_status=COALESCE(?,provider_status),last_provider_sync_at=NOW() WHERE id=?',
+        [telemetry.start_counter, telemetry.remains, telemetry.provider_status, order.id]
+      );
     } else if (!order.funds_refunded) {
-      await conn.query('UPDATE orders SET status=? WHERE id=?', [status, order.id]);
+      await conn.query(
+        'UPDATE orders SET status=?,start_counter=COALESCE(?,start_counter),remains=COALESCE(?,remains),provider_status=COALESCE(?,provider_status),last_provider_sync_at=NOW() WHERE id=?',
+        [status, telemetry.start_counter, telemetry.remains, telemetry.provider_status, order.id]
+      );
     }
-    await conn.query('INSERT INTO supplier_order_events (order_id,supplier_id,event_type,remote_order_id,payload) VALUES (?,? ,"status_sync",?,?)', [order.id, supplierId, order.provider_order_id, JSON.stringify(raw)]);
+    await conn.query(
+      'INSERT INTO supplier_order_events (order_id,supplier_id,event_type,remote_order_id,payload) VALUES (?,? ,"status_sync",?,?)',
+      [order.id, supplierId, order.provider_order_id, JSON.stringify(raw)]
+    );
     await conn.commit();
   } catch (error) {
     await conn.rollback();
@@ -343,7 +369,10 @@ async function syncOpenSupplierOrders(limit = 100) {
       await applyRemoteStatus(order.id, order.supplier_id, mapSupplierStatus(remoteStatus), raw);
       synced += 1;
     } catch (error) {
-      await pool.query('INSERT INTO supplier_order_events (order_id,supplier_id,event_type,remote_order_id,payload) VALUES (?,?,"status_error",?,?)', [order.id, order.supplier_id, order.provider_order_id, JSON.stringify({ error: error.message })]).catch(() => {});
+      await pool.query(
+        'INSERT INTO supplier_order_events (order_id,supplier_id,event_type,remote_order_id,payload) VALUES (?,?,"status_error",?,?)',
+        [order.id, order.supplier_id, order.provider_order_id, JSON.stringify({ error: error.message })]
+      ).catch(() => {});
     }
   }
   return { synced };
@@ -368,6 +397,7 @@ module.exports = {
   fetchSupplierOrderStatus,
   testSupplierConnection,
   mapSupplierStatus,
+  orderTelemetry,
   syncOpenSupplierOrders,
   startSupplierScheduler
 };
