@@ -1,7 +1,7 @@
 name: Deploy SMM SuperAmplitude
 
 permissions:
-  contents: write
+  contents: read
 
 on:
   push:
@@ -22,13 +22,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          persist-credentials: true
 
       - name: Validate source
         run: |
           node --version
           npm --version
+          test -f package-lock.json
           node --check server.js
           node --check public/app.js
           node --check public/panel/panel.js
@@ -40,24 +39,9 @@ jobs:
           node --check src/admin-integrations.js
           npm test
 
-      - name: Build dependency lock and security audit
+      - name: Security audit
         run: |
-          if [ ! -f package-lock.json ]; then
-            npm install --package-lock-only --ignore-scripts --no-fund
-          fi
           npm audit --omit=dev --audit-level=high
-
-      - name: Persist generated dependency lock
-        if: ${{ github.event_name != 'pull_request' && hashFiles('package-lock.json') != '' }}
-        run: |
-          if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
-            exit 0
-          fi
-          git config user.name 'smm-production-bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git add package-lock.json
-          git commit -m 'build: lock audited production dependencies [skip ci]'
-          git push origin HEAD:main
 
   deploy:
     name: Production deploy
