@@ -23,7 +23,14 @@ test('financial, supplier and AI tables are present', () => {
   for (const table of ['wallet_transactions','ai_decisions','supplier_servers','service_supplier_links','supplier_catalog','ai_integrations','supplier_order_events']) {
     assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
   }
+  for (const field of ['conversion_rate','markup_percent','rate_divisor','auto_price_sync','last_balance_at']) assert.match(schema, new RegExp(field));
   assert.match(schema, /funds_refunded/);
+});
+
+test('existing databases receive supplier finance migrations', () => {
+  const db = read('src/db.js');
+  for (const field of ['balance_endpoint','balance','currency','conversion_rate','markup_percent','rate_divisor','auto_price_sync','last_balance_at']) assert.match(db, new RegExp(field));
+  assert.match(db, /MODIFY COLUMN price_per_unit DECIMAL\(12,6\)/);
 });
 
 test('integration secrets are encrypted at rest', () => {
@@ -42,22 +49,29 @@ test('orders debit wallet and are submitted directly to supplier', () => {
   assert.match(server, /refundOrderAfterSupplierFailure/);
 });
 
-test('supplier gateway supports catalog, order and status flow', () => {
+test('supplier gateway supports catalog, balance, publishing, pricing, order and status flow', () => {
   const supplier = read('src/suppliers.js');
   assert.match(supplier, /action: 'services'/);
+  assert.match(supplier, /action: 'balance'/);
   assert.match(supplier, /action: 'add'/);
   assert.match(supplier, /action: 'status'/);
+  assert.match(supplier, /publishSupplierCatalog/);
+  assert.match(supplier, /repriceLinkedServices/);
+  assert.match(supplier, /calculateSaleUnitPrice/);
   assert.match(supplier, /syncOpenSupplierOrders/);
   assert.match(supplier, /startSupplierScheduler/);
+  assert.match(supplier, /supplier_id,event_type,remote_order_id,payload/);
 });
 
-test('admin command center exposes operational APIs', () => {
+test('admin command center exposes operational and supplier APIs', () => {
   const server = read('server.js');
   for (const route of ['/api/admin/overview','/api/admin/orders','/api/admin/users','/api/admin/payments','/api/admin/services','/api/admin/ai/decisions','/api/admin/audit']) {
     assert.equal(server.includes(route), true, `${route} ausente`);
   }
   const integrations = read('src/admin-integrations.js');
-  for (const route of ['/suppliers','/ai-integrations','/integrations/status']) assert.equal(integrations.includes(route), true, `${route} ausente`);
+  for (const route of ['/suppliers','/suppliers/:id/balance','/suppliers/:id/reprice','/suppliers/:id/publish','/ai-integrations','/integrations/status']) {
+    assert.equal(integrations.includes(route), true, `${route} ausente`);
+  }
 });
 
 test('readiness checks database and dynamic AI configuration', () => {
@@ -76,13 +90,17 @@ test('AI organizes supplier text without inventing source codes', () => {
   assert.match(ai, /gemini/);
 });
 
-test('dedicated super admin contains supplier, AI and catalog controls', () => {
+test('dedicated super admin contains supplier, AI, finance and catalog controls', () => {
   const html = read('public/admin/index.html');
-  for (const id of ['supplierForm','suppliersTable','aiIntegrationForm','aiIntegrationsTable','catalogSupplierSelect','categoryCards','serviceSupplierSelect','ordersTable']) {
+  for (const id of ['supplierForm','suppliersTable','aiIntegrationForm','aiIntegrationsTable','catalogSupplierSelect','categoryCards','publishCatalogBtn','serviceSupplierSelect','ordersTable']) {
     assert.equal(html.includes(`id="${id}"`), true, `${id} ausente no Super ADM`);
   }
-  assert.match(html, /\/admin\/admin\.js/);
-  assert.match(read('public/admin/admin.js'), /Sincronizar \+ IA/);
+  for (const field of ['conversion_rate','markup_percent','rate_divisor','balance_endpoint','auto_price_sync']) assert.match(html, new RegExp(`name="${field}"`));
+  const admin = read('public/admin/admin.js');
+  assert.match(admin, /Sincronizar \+ IA/);
+  assert.match(admin, /supplierBalance/);
+  assert.match(admin, /supplierPublish/);
+  assert.match(admin, /supplierReprice/);
   assert.match(read('public/index.html'), /href="\/admin\/"/);
 });
 
