@@ -24,9 +24,32 @@ const starterServices = [
   ['Analytics', 'Relatório de desempenho', 'Leitura de métricas, diagnóstico e plano de melhoria.', 'relatório', 1, 12, 180.00]
 ];
 
+async function ensureColumn(table, column, definition) {
+  const [rows] = await pool.query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [column]);
+  if (!rows.length) await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN ${definition}`);
+}
+
+async function ensureIndex(table, indexName, definition) {
+  const [rows] = await pool.query(`SHOW INDEX FROM \`${table}\` WHERE Key_name=?`, [indexName]);
+  if (!rows.length) await pool.query(`ALTER TABLE \`${table}\` ADD ${definition}`);
+}
+
+async function migrateExistingDatabase() {
+  await ensureColumn('supplier_servers', 'balance_endpoint', '`balance_endpoint` VARCHAR(255) NULL AFTER `status_endpoint`');
+  await ensureColumn('supplier_servers', 'balance', '`balance` DECIMAL(18,4) NOT NULL DEFAULT 0 AFTER `webhook_url`');
+  await ensureColumn('supplier_servers', 'currency', '`currency` VARCHAR(16) NULL AFTER `balance`');
+  await ensureColumn('supplier_servers', 'conversion_rate', '`conversion_rate` DECIMAL(18,8) NOT NULL DEFAULT 1 AFTER `currency`');
+  await ensureColumn('supplier_servers', 'markup_percent', '`markup_percent` DECIMAL(8,2) NOT NULL DEFAULT 30 AFTER `conversion_rate`');
+  await ensureColumn('supplier_servers', 'rate_divisor', '`rate_divisor` INT NOT NULL DEFAULT 1000 AFTER `markup_percent`');
+  await ensureColumn('supplier_servers', 'auto_price_sync', '`auto_price_sync` TINYINT(1) NOT NULL DEFAULT 1 AFTER `rate_divisor`');
+  await ensureColumn('supplier_servers', 'last_balance_at', '`last_balance_at` TIMESTAMP NULL AFTER `last_sync_at`');
+  await ensureIndex('service_supplier_links', 'idx_supplier_service_code', 'INDEX `idx_supplier_service_code` (`supplier_id`,`supplier_service_code`)');
+}
+
 async function initDatabase() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(schema);
+  await migrateExistingDatabase();
 
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
