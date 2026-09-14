@@ -7,7 +7,7 @@ const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('critical production files exist', () => {
-  for (const file of ['server.js','src/db.js','src/ai.js','src/payments.js','src/suppliers.js','src/secrets.js','src/admin-integrations.js','src/schema.sql','public/index.html','public/app.js','public/admin/index.html','public/admin/admin.css','public/admin/admin.js','deploy/deploy.sh','deploy/bootstrap-vps.sh']) {
+  for (const file of ['server.js','src/db.js','src/ai.js','src/payments.js','src/suppliers.js','src/secrets.js','src/admin-integrations.js','src/schema.sql','public/index.html','public/app.js','public/admin/index.html','public/admin/admin.css','public/admin/admin.js','public/admin/admin-layout.js','deploy/deploy.sh','deploy/bootstrap-vps.sh']) {
     assert.equal(fs.existsSync(path.join(root, file)), true, `${file} ausente`);
   }
 });
@@ -90,12 +90,20 @@ test('AI organizes supplier text without inventing source codes', () => {
   assert.match(ai, /gemini/);
 });
 
-test('dedicated super admin contains supplier, AI, finance and catalog controls', () => {
+test('dedicated super admin contains Matrix-inspired provider and catalog structure', () => {
   const html = read('public/admin/index.html');
   for (const id of ['supplierForm','suppliersTable','aiIntegrationForm','aiIntegrationsTable','catalogSupplierSelect','categoryCards','publishCatalogBtn','serviceSupplierSelect','ordersTable']) {
     assert.equal(html.includes(`id="${id}"`), true, `${id} ausente no Super ADM`);
   }
+  for (const label of ['API Providers','Importar Serviços','Serviços','Pedidos','Clientes','Pagamentos']) assert.match(html, new RegExp(label));
   for (const field of ['conversion_rate','markup_percent','rate_divisor','balance_endpoint','auto_price_sync']) assert.match(html, new RegExp(`name="${field}"`));
+  assert.match(html, /admin-layout\.js/);
+  const layout = read('public/admin/admin-layout.js');
+  assert.match(layout, /active-page/);
+  assert.match(layout, /hashchange/);
+  const css = read('public/admin/admin.css');
+  assert.match(css, /--primary:#377dff/);
+  assert.match(css, /background:#fff/);
   const admin = read('public/admin/admin.js');
   assert.match(admin, /Sincronizar \+ IA/);
   assert.match(admin, /supplierBalance/);
