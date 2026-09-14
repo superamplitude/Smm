@@ -35,6 +35,10 @@ jobs:
           node --check src/admin-integrations.js
           npm test
 
+      - name: Security audit
+        run: |
+          npm audit --omit=dev --audit-level=high
+
   deploy:
     name: Production deploy
     if: github.event_name != 'pull_request'
@@ -50,13 +54,17 @@ jobs:
           chmod +x deploy/deploy.sh
           deploy/deploy.sh
 
-      - name: Verify production health
+      - name: Verify production health and security
         run: |
           curl -fsS http://127.0.0.1:3008/health
           curl -fsS http://127.0.0.1:3008/ready
-          curl -fsSI https://smm.superamplitude.com >/dev/null
+          curl -fsSI https://smm.superamplitude.com >/tmp/smm-headers.txt
+          grep -qi '^x-content-type-options: nosniff' /tmp/smm-headers.txt
+          test "$(curl -sS -o /dev/null -w '%{http_code}' https://smm.superamplitude.com/api/dashboard)" = "401"
+          curl -fsS https://smm.superamplitude.com/api/services | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const j=JSON.parse(s);if(!Array.isArray(j))process.exit(1)})'
           curl -fsS https://smm.superamplitude.com/ | grep -q 'Pedido direto no fornecedor'
           curl -fsS https://smm.superamplitude.com/panel/ | grep -q 'Novo pedido'
           curl -fsS https://smm.superamplitude.com/panel/panel.js | grep -q '/api/dashboard'
           curl -fsS https://smm.superamplitude.com/admin/ | grep -q 'Adicionar API Provider'
           curl -fsS https://smm.superamplitude.com/admin/admin-layout.js | grep -q 'active-page'
+          rm -f /tmp/smm-headers.txt
