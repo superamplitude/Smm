@@ -8,7 +8,7 @@ const state = {
   ais: []
 };
 
-const money = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+const money = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(Number(value || 0));
 const dateTime = value => value ? new Date(value).toLocaleString('pt-BR') : '—';
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const short = (value, max = 90) => String(value || '').length > max ? `${String(value).slice(0, max - 1)}…` : String(value || '');
@@ -102,13 +102,21 @@ async function loadSuppliers() {
   if (!state.suppliers.length) {
     table.innerHTML = '<div class="empty">Nenhum servidor cadastrado. Use o formulário ao lado.</div>';
   } else {
-    table.innerHTML = `<table><thead><tr><th>Servidor</th><th>Tipo</th><th>Conexão</th><th>Última sync</th><th>Ações</th></tr></thead><tbody>${state.suppliers.map(item => `
+    table.innerHTML = `<table><thead><tr><th>Servidor</th><th>Saldo</th><th>Preço</th><th>Conexão</th><th>Última sync</th><th>Ações</th></tr></thead><tbody>${state.suppliers.map(item => `
       <tr>
-        <td><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.base_url)}${item.is_primary ? ' • principal' : ''}</small></td>
-        <td>${escapeHtml(item.api_type)}<small>chave: ${item.api_key_configured ? 'configurada' : 'ausente'}</small></td>
+        <td><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.base_url)}${item.is_primary ? ' • principal' : ''}</small><small>${escapeHtml(item.api_type)} • chave ${item.api_key_configured ? 'configurada' : 'ausente'}</small></td>
+        <td><b>${escapeHtml(item.currency || '—')} ${Number(item.balance || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 })}</b><small>${item.last_balance_at ? `consultado ${dateTime(item.last_balance_at)}` : 'saldo não consultado'}</small></td>
+        <td><b>${Number(item.markup_percent || 0).toLocaleString('pt-BR')}% margem</b><small>conversão ${Number(item.conversion_rate || 1)} • divisor ${Number(item.rate_divisor || 1000)}</small><small>${item.auto_price_sync ? 'preço automático' : 'preço manual'}</small></td>
         <td>${statusPill(item.last_test_status || (item.active ? 'active' : 'inactive'))}</td>
         <td>${dateTime(item.last_sync_at)}</td>
-        <td class="row-actions"><button class="secondary tiny" data-supplier-test="${item.id}">Testar</button><button class="primary tiny" data-supplier-sync="${item.id}">Sincronizar + IA</button><button class="secondary tiny" data-supplier-toggle="${item.id}" data-next="${item.active ? '0' : '1'}">${item.active ? 'Desativar' : 'Ativar'}</button></td>
+        <td class="row-actions">
+          <button class="secondary tiny" data-supplier-test="${item.id}">Testar</button>
+          <button class="secondary tiny" data-supplier-balance="${item.id}">Saldo</button>
+          <button class="primary tiny" data-supplier-sync="${item.id}">Sincronizar + IA</button>
+          <button class="secondary tiny" data-supplier-publish="${item.id}">Publicar</button>
+          <button class="secondary tiny" data-supplier-reprice="${item.id}">Preços</button>
+          <button class="secondary tiny" data-supplier-toggle="${item.id}" data-next="${item.active ? '0' : '1'}">${item.active ? 'Desativar' : 'Ativar'}</button>
+        </td>
       </tr>`).join('')}</tbody></table>`;
   }
   const options = state.suppliers.filter(item => item.active).map(item => `<option value="${item.id}">${escapeHtml(item.name)}${item.is_primary ? ' — principal' : ''}</option>`).join('');
@@ -140,14 +148,14 @@ async function loadCatalog(supplierId) {
     return `<article class="category-card"><span class="category-icon">${escapeHtml(icons[key] || '◆')}</span><div><strong>${escapeHtml(category.category)}</strong><small>${Number(category.total || 0)} serviços</small></div></article>`;
   }).join('') : '<div class="empty">O catálogo ainda não foi sincronizado.</div>';
 
-  $('#catalogTable').innerHTML = data.items.length ? `<table><thead><tr><th>Código</th><th>Texto recebido</th><th>Nome limpo</th><th>Categoria</th><th>IA</th></tr></thead><tbody>${data.items.map(item => `
-    <tr><td>${escapeHtml(item.supplier_service_code)}</td><td title="${escapeHtml(item.raw_name)}">${escapeHtml(short(item.raw_name,80))}</td><td>${escapeHtml(item.clean_name || item.raw_name)}</td><td>${escapeHtml(item.category || 'Sem categoria')}</td><td>${item.processed_by_ai ? statusPill('completed') : statusPill('fallback')}</td></tr>`).join('')}</tbody></table>` : '';
+  $('#catalogTable').innerHTML = data.items.length ? `<table><thead><tr><th>Código</th><th>Texto recebido</th><th>Nome limpo</th><th>Categoria</th><th>Custo fornecedor</th><th>IA</th></tr></thead><tbody>${data.items.map(item => `
+    <tr><td>${escapeHtml(item.supplier_service_code)}</td><td title="${escapeHtml(item.raw_name)}">${escapeHtml(short(item.raw_name,80))}</td><td>${escapeHtml(item.clean_name || item.raw_name)}</td><td>${escapeHtml(item.category || 'Sem categoria')}</td><td>${Number(item.supplier_cost || 0).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</td><td>${item.processed_by_ai ? statusPill('completed') : statusPill('fallback')}</td></tr>`).join('')}</tbody></table>` : '';
 }
 
 async function loadServices() {
   const rows = await api('/api/admin/services');
   $('#servicesTable').innerHTML = rows.length ? `<table><thead><tr><th>Serviço</th><th>Preço</th><th>Fornecedor</th><th>Status</th></tr></thead><tbody>${rows.map(service => `
-    <tr><td><b>${escapeHtml(service.name)}</b><small>${escapeHtml(service.category)} • ${escapeHtml(service.unit_label)}</small></td><td>${money(service.price_per_unit)}</td><td>${service.supplier_name ? `${escapeHtml(service.supplier_name)}<small>código ${escapeHtml(service.supplier_service_code || service.provider_code || '—')}</small>` : '<span class="muted">sem vínculo</span>'}</td><td>${statusPill(service.active ? 'active' : 'inactive')}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Nenhum serviço cadastrado.</div>';
+    <tr><td><b>${escapeHtml(service.name)}</b><small>${escapeHtml(service.category)} • ${escapeHtml(service.unit_label)}</small></td><td>${money(service.price_per_unit)}<small>por unidade cobrada</small></td><td>${service.supplier_name ? `${escapeHtml(service.supplier_name)}<small>código ${escapeHtml(service.supplier_service_code || service.provider_code || '—')} • custo ${Number(service.supplier_cost || 0).toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</small>` : '<span class="muted">sem vínculo</span>'}</td><td>${statusPill(service.active ? 'active' : 'inactive')}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Nenhum serviço cadastrado.</div>';
 }
 
 async function loadOrders() {
@@ -194,9 +202,14 @@ $('#supplierForm').addEventListener('submit', async event => {
   try {
     const body = Object.fromEntries(data.entries());
     body.is_primary = data.has('is_primary');
+    body.auto_price_sync = data.has('auto_price_sync');
     await api('/api/admin/suppliers', { method: 'POST', body: JSON.stringify(body) });
-    showMessage($('#supplierMessage'), 'Servidor cadastrado. Agora teste e sincronize o catálogo.', 'good');
+    showMessage($('#supplierMessage'), 'Servidor cadastrado. Agora teste, consulte o saldo e sincronize o catálogo.', 'good');
     form.reset();
+    form.elements.conversion_rate.value = '1';
+    form.elements.markup_percent.value = '30';
+    form.elements.rate_divisor.value = '1000';
+    form.elements.auto_price_sync.checked = true;
     await Promise.all([loadSuppliers(), loadOverview()]);
   } catch (error) { showMessage($('#supplierMessage'), error.message, 'bad'); }
 });
@@ -240,36 +253,71 @@ $('#serviceForm').addEventListener('submit', async event => {
 $('#suppliersTable').addEventListener('click', async event => {
   const button = event.target.closest('button');
   if (!button) return;
+  const originalText = button.textContent;
   try {
+    button.disabled = true;
     if (button.dataset.supplierTest) {
-      button.disabled = true; button.textContent = 'Testando…';
+      button.textContent = 'Testando…';
       const result = await api(`/api/admin/suppliers/${button.dataset.supplierTest}/test`, { method: 'POST', body: '{}' });
       alert(`Conexão ativa. ${result.count} serviço(s) encontrado(s).`);
+    } else if (button.dataset.supplierBalance) {
+      button.textContent = 'Consultando…';
+      const result = await api(`/api/admin/suppliers/${button.dataset.supplierBalance}/balance`, { method: 'POST', body: '{}' });
+      alert(`Saldo do fornecedor: ${result.currency || ''} ${Number(result.balance || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 })}`);
     } else if (button.dataset.supplierSync) {
-      button.disabled = true; button.textContent = 'Sincronizando…';
+      button.textContent = 'Sincronizando…';
       const result = await api(`/api/admin/suppliers/${button.dataset.supplierSync}/sync`, { method: 'POST', body: '{}' });
       $('#catalogSupplierSelect').value = button.dataset.supplierSync;
       await loadCatalog(button.dataset.supplierSync);
-      alert(`${result.imported} serviço(s) recebidos. ${result.categorization.processed} processados pela rotina de categorização.`);
+      alert(`${result.imported} serviço(s) recebidos. ${result.categorization.processed} processados. ${result.repriced || 0} preços atualizados.`);
+    } else if (button.dataset.supplierPublish) {
+      button.textContent = 'Publicando…';
+      const result = await api(`/api/admin/suppliers/${button.dataset.supplierPublish}/publish`, { method: 'POST', body: '{}' });
+      alert(`Catálogo publicado: ${result.created} novos, ${result.updated} atualizados, ${result.skipped} ignorados.`);
+      await loadServices();
+    } else if (button.dataset.supplierReprice) {
+      button.textContent = 'Atualizando…';
+      const result = await api(`/api/admin/suppliers/${button.dataset.supplierReprice}/reprice`, { method: 'POST', body: '{}' });
+      alert(`${result.updated} preço(s) recalculado(s).`);
+      await loadServices();
     } else if (button.dataset.supplierToggle) {
       await api(`/api/admin/suppliers/${button.dataset.supplierToggle}`, { method: 'PATCH', body: JSON.stringify({ active: button.dataset.next === '1' }) });
     }
   } catch (error) { alert(error.message); }
+  finally { button.disabled = false; button.textContent = originalText; }
   await Promise.all([loadSuppliers(), loadOverview()]);
+});
+
+$('#publishCatalogBtn').addEventListener('click', async () => {
+  const supplierId = $('#catalogSupplierSelect').value;
+  if (!supplierId) return alert('Selecione um servidor no Catálogo IA.');
+  const button = $('#publishCatalogBtn');
+  const original = button.textContent;
+  try {
+    button.disabled = true;
+    button.textContent = 'Publicando…';
+    const result = await api(`/api/admin/suppliers/${supplierId}/publish`, { method: 'POST', body: '{}' });
+    alert(`Catálogo publicado: ${result.created} novos, ${result.updated} atualizados, ${result.skipped} ignorados.`);
+    await Promise.all([loadServices(), loadOverview()]);
+  } catch (error) { alert(error.message); }
+  finally { button.disabled = false; button.textContent = original; }
 });
 
 $('#aiIntegrationsTable').addEventListener('click', async event => {
   const button = event.target.closest('button');
   if (!button) return;
+  const originalText = button.textContent;
   try {
+    button.disabled = true;
     if (button.dataset.aiTest) {
-      button.disabled = true; button.textContent = 'Testando…';
+      button.textContent = 'Testando…';
       const result = await api(`/api/admin/ai-integrations/${button.dataset.aiTest}/test`, { method: 'POST', body: '{}' });
       alert(`IA conectada. Modelo: ${result.model}`);
     } else if (button.dataset.aiToggle) {
       await api(`/api/admin/ai-integrations/${button.dataset.aiToggle}`, { method: 'PATCH', body: JSON.stringify({ enabled: button.dataset.next === '1' }) });
     }
   } catch (error) { alert(error.message); }
+  finally { button.disabled = false; button.textContent = originalText; }
   await Promise.all([loadAiIntegrations(), loadOverview()]);
 });
 
