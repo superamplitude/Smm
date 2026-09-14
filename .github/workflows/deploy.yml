@@ -49,3 +49,4 @@ jobs:
           curl -fsS http://127.0.0.1:3008/health
           curl -fsS http://127.0.0.1:3008/ready
           curl -fsSI https://smm.superamplitude.com >/dev/null
+          curl -fsS https://smm.superamplitude.com/admin/ | grep -q "Super ADM"
