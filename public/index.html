@@ -3,171 +3,100 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#111827">
-  <title>SMM SuperAmplitude — Marketing gerido por IA</title>
-  <meta name="description" content="Central SMM SuperAmplitude com gestão por IA, pedidos, pagamentos e acompanhamento em tempo real.">
+  <meta name="theme-color" content="#ffffff">
+  <title>SMM SuperAmplitude — Painel de serviços digitais</title>
+  <meta name="description" content="SMM SuperAmplitude: catálogo organizado por IA, pedidos processados diretamente no fornecedor e acompanhamento em tempo real.">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#home"><span class="brand-mark">S</span><span>SMM <b>SuperAmplitude</b></span></a>
-    <nav>
-      <a href="#services">Serviços</a>
-      <a href="#ai">IA</a>
-      <a href="#dashboard">Painel</a>
-      <a href="/admin/">Super ADM</a>
-      <button id="authBtn" class="btn btn-small">Entrar</button>
-    </nav>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="#inicio" aria-label="SMM SuperAmplitude"><span class="brand-mark">S</span><span><strong>SMM</strong><small>SuperAmplitude</small></span></a>
+      <nav class="desktop-nav" aria-label="Navegação principal">
+        <a href="#servicos">Serviços</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#ia">IA</a>
+      </nav>
+      <div class="header-actions">
+        <a id="panelLink" class="btn btn-light hidden" href="/panel/">Meu painel</a>
+        <button id="loginBtn" class="btn btn-light" type="button" data-auth="login">Entrar</button>
+        <button id="registerBtn" class="btn btn-primary" type="button" data-auth="register">Criar conta</button>
+      </div>
+    </div>
   </header>
 
   <main>
-    <section id="home" class="hero shell">
-      <div class="hero-copy">
-        <span class="eyebrow">SMM + INTELIGÊNCIA ARTIFICIAL</span>
-        <h1>Marketing digital com operação central gerida por IA.</h1>
-        <p>A IA analisa objetivos, recomenda serviços, sinaliza riscos, acompanha pedidos e transforma dados operacionais em decisões claras — com controle humano nas ações sensíveis.</p>
-        <div class="hero-actions">
-          <button class="btn" data-open-auth="register">Criar conta</button>
-          <a class="btn btn-ghost" href="#ai">Consultar a IA</a>
+    <section id="inicio" class="hero">
+      <div class="shell hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">AUTOMAÇÃO SMM + INTELIGÊNCIA ARTIFICIAL</span>
+          <h1>Escolha o serviço. O sistema cuida do fluxo até o fornecedor.</h1>
+          <p>Catálogo limpo, preços organizados, saldo em conta e pedidos enviados diretamente à API do fornecedor. A IA trabalha os textos recebidos, categoriza o catálogo e mantém a operação fácil de entender.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary btn-lg" type="button" data-auth="register">Começar agora</button>
+            <a class="btn btn-light btn-lg" href="#servicos">Ver serviços</a>
+          </div>
+          <div class="trust-row"><span>✓ Pedido direto no fornecedor</span><span>✓ Acompanhamento automático</span><span>✓ Catálogo organizado por IA</span></div>
         </div>
-        <div class="trust-row"><span>✓ Auditoria</span><span>✓ Mercado Pago</span><span>✓ PayPal</span><span>✓ Gestão por IA</span></div>
-      </div>
-      <aside class="ai-card">
-        <div class="ai-head"><span class="pulse"></span><b>IA Operacional</b><span class="status">ATIVA</span></div>
-        <div class="metric-grid">
-          <div><small>Risco</small><strong>Monitorado</strong></div>
-          <div><small>Pedidos</small><strong>Triagem IA</strong></div>
-          <div><small>Estratégia</small><strong>Catálogo real</strong></div>
-          <div><small>Financeiro</small><strong>Protegido</strong></div>
+        <div class="hero-panel" aria-label="Fluxo do sistema">
+          <div class="hero-panel-head"><div><small>OPERAÇÃO AUTOMÁTICA</small><strong>Pedido em processamento</strong></div><span class="online-dot">● Online</span></div>
+          <div class="flow-list">
+            <div class="flow-item done"><span>1</span><div><b>Cliente envia o pedido</b><small>Serviço, quantidade e link validados</small></div><em>✓</em></div>
+            <div class="flow-item done"><span>2</span><div><b>API envia ao fornecedor</b><small>Código original do serviço preservado</small></div><em>✓</em></div>
+            <div class="flow-item active"><span>3</span><div><b>Fornecedor processa</b><small>Status sincronizado automaticamente</small></div><em>•••</em></div>
+            <div class="flow-item"><span>4</span><div><b>Painel atualiza o cliente</b><small>Pedido, contador e restante quando disponíveis</small></div></div>
+          </div>
+          <div class="hero-panel-footer"><span>Fornecedor API</span><span>→</span><span>SMM SuperAmplitude</span><span>→</span><span>Cliente</span></div>
         </div>
-        <div class="ai-note">A IA recomenda e classifica. Pagamentos, reembolsos, saldo e bloqueios seguem regras determinísticas e controle administrativo.</div>
-      </aside>
-    </section>
-
-    <section id="services" class="section shell">
-      <div class="section-head"><div><span class="eyebrow">CATÁLOGO</span><h2>Serviços disponíveis</h2></div><button id="reloadServices" class="btn btn-ghost btn-small">Atualizar</button></div>
-      <div id="servicesGrid" class="cards"><div class="empty">Carregando serviços…</div></div>
-    </section>
-
-    <section id="ai" class="section section-soft">
-      <div class="shell ai-section">
-        <div>
-          <span class="eyebrow">ASSISTENTE ESTRATÉGICO</span>
-          <h2>Descreva seu objetivo. A IA monta o caminho.</h2>
-          <p>Informe rede, orçamento e meta. O sistema cruza seu objetivo com o catálogo ativo e retorna somente serviços que realmente existem na plataforma.</p>
-        </div>
-        <form id="aiForm" class="panel form-grid">
-          <label>Rede social<input name="network" placeholder="Instagram, Facebook, TikTok…" required></label>
-          <label>Orçamento mensal (R$)<input name="budget" type="number" min="0" step="1" placeholder="1500"></label>
-          <label class="full">Objetivo<textarea name="goal" rows="4" placeholder="Ex.: aumentar geração de leads para minha empresa com conteúdo e anúncios." required></textarea></label>
-          <button class="btn full" type="submit">Analisar com IA</button>
-          <div id="aiResult" class="result full hidden"></div>
-        </form>
       </div>
     </section>
 
-    <section id="dashboard" class="section shell">
-      <div class="section-head"><div><span class="eyebrow">ÁREA DO CLIENTE</span><h2>Central de operação</h2></div><span id="userBadge" class="badge">Não autenticado</span></div>
-      <div id="guestPanel" class="panel guest-panel">
-        <h3>Acesse seu painel</h3><p>Entre para criar pedidos, carregar saldo e acompanhar a operação.</p><button class="btn" data-open-auth="login">Entrar agora</button>
-      </div>
-      <div id="userPanel" class="dashboard hidden">
-        <div class="stat-grid">
-          <div class="stat"><small>Saldo</small><strong id="balance">R$ 0,00</strong></div>
-          <div class="stat"><small>Conta</small><strong id="accountName">—</strong></div>
-          <div class="stat"><small>Perfil</small><strong id="accountRole">Cliente</strong></div>
+    <section id="servicos" class="section section-white">
+      <div class="shell">
+        <div class="section-heading">
+          <div><span class="eyebrow">CATÁLOGO PUBLICADO</span><h2>Serviços por categoria</h2><p>Os nomes e categorias são organizados a partir do catálogo real recebido dos fornecedores.</p></div>
+          <button id="reloadServices" class="btn btn-light" type="button">↻ Atualizar catálogo</button>
         </div>
-        <div class="dashboard-grid">
-          <form id="orderForm" class="panel form-grid">
-            <h3 class="full">Novo pedido</h3>
-            <label class="full">Serviço<select name="service_id" id="serviceSelect" required></select></label>
-            <label>Quantidade<input name="quantity" type="number" min="1" required></label>
-            <label>URL de referência/destino<input name="target_url" type="url" placeholder="https://…" required></label>
-            <button class="btn full" type="submit">Enviar para análise da IA</button>
-            <div id="orderResult" class="result full hidden"></div>
-          </form>
-          <form id="paymentForm" class="panel form-grid">
-            <h3 class="full">Adicionar saldo</h3>
-            <label>Valor (R$)<input name="amount" type="number" min="10" max="50000" step="0.01" required></label>
-            <label>Pagamento<select name="gateway"><option value="mercadopago">Mercado Pago</option><option value="paypal">PayPal</option></select></label>
-            <button class="btn full" type="submit">Abrir checkout seguro</button>
-            <div id="paymentResult" class="result full hidden"></div>
-          </form>
-        </div>
-        <div class="panel table-panel"><div class="section-head"><h3>Meus pedidos</h3><button id="refreshOrders" class="btn btn-ghost btn-small">Atualizar</button></div><div id="ordersTable"></div></div>
-        <div class="panel table-panel"><div class="section-head"><h3>Extrato da carteira</h3><button id="refreshWallet" class="btn btn-ghost btn-small">Atualizar</button></div><div id="walletTable"></div></div>
-
-        <section id="adminPanel" class="admin hidden" style="display:none!important">
-          <div class="admin-titlebar">
-            <div><span class="eyebrow">SUPER ADMIN</span><h2>Centro de comando operacional</h2><p>Pedidos, clientes, pagamentos, serviços, auditoria e decisões da IA em um único painel.</p></div>
-            <div class="admin-actions"><button id="loadAiBrief" class="btn btn-ghost btn-small">Briefing IA</button><button id="refreshAdmin" class="btn btn-small">Atualizar tudo</button></div>
-          </div>
-
-          <div class="admin-stat-grid">
-            <div class="stat"><small>Clientes</small><strong id="adminUsers">—</strong><span id="adminUsersMeta">—</span></div>
-            <div class="stat"><small>Pedidos</small><strong id="adminOrders">—</strong><span id="adminOrdersMeta">—</span></div>
-            <div class="stat"><small>Receita confirmada</small><strong id="adminRevenue">—</strong><span id="adminRevenueMeta">—</span></div>
-            <div class="stat"><small>IA</small><strong id="adminAi">—</strong><span id="adminAiMeta">—</span></div>
-          </div>
-
-          <div id="aiBrief" class="panel ai-brief"><p>A IA operacional pode resumir saúde, alertas e ações recomendadas.</p></div>
-
-          <div class="admin-grid">
-            <section class="panel admin-card admin-card-wide">
-              <div class="section-head"><div><h3>Fila de pedidos</h3><p>Status operacional e devolução automática quando cancelado ou reembolsado.</p></div><span class="badge">até 200</span></div>
-              <div id="adminOrdersTable" class="table-scroll"><div class="empty">Carregando pedidos…</div></div>
-            </section>
-
-            <section class="panel admin-card">
-              <div class="section-head"><div><h3>Clientes</h3><p>Bloqueio e reativação sob controle humano.</p></div></div>
-              <div id="adminUsersTable" class="table-scroll"><div class="empty">Carregando clientes…</div></div>
-            </section>
-
-            <section class="panel admin-card">
-              <div class="section-head"><div><h3>Pagamentos</h3><p>Histórico dos gateways e estados de confirmação.</p></div></div>
-              <div id="adminPaymentsTable" class="table-scroll"><div class="empty">Carregando pagamentos…</div></div>
-            </section>
-
-            <section class="panel admin-card">
-              <div class="section-head"><div><h3>Decisões da IA</h3><p>Rastreabilidade e revisão administrativa.</p></div></div>
-              <div id="adminAiTable" class="table-scroll"><div class="empty">Carregando decisões…</div></div>
-            </section>
-
-            <section class="panel admin-card">
-              <div class="section-head"><div><h3>Serviços</h3><p>Catálogo publicado e disponibilidade.</p></div></div>
-              <div id="adminServicesTable" class="table-scroll"><div class="empty">Carregando serviços…</div></div>
-            </section>
-
-            <section class="panel admin-card admin-card-wide">
-              <div class="section-head"><div><h3>Auditoria</h3><p>Registro das ações sensíveis da plataforma.</p></div></div>
-              <div id="adminAuditTable" class="table-scroll"><div class="empty">Carregando auditoria…</div></div>
-            </section>
-          </div>
-
-          <form id="serviceForm" class="panel form-grid service-form">
-            <h3 class="full">Cadastrar serviço</h3>
-            <label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label>
-            <label class="full">Descrição<textarea name="description" rows="3"></textarea></label>
-            <label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço por unidade<input name="price_per_unit" type="number" step="0.01" min="0.01" required></label>
-            <label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label>
-            <button class="btn full">Salvar serviço</button>
-          </form>
-        </section>
+        <div id="categoryStrip" class="category-strip"></div>
+        <div id="servicesGrid" class="service-grid"><div class="empty-state">Carregando catálogo…</div></div>
       </div>
+    </section>
+
+    <section id="como-funciona" class="section section-soft">
+      <div class="shell">
+        <div class="section-heading centered"><div><span class="eyebrow">FLUXO SIMPLES</span><h2>Do pedido à execução em quatro passos</h2><p>Sem intermediação manual desnecessária entre o cliente e o servidor configurado.</p></div></div>
+        <div class="steps-grid">
+          <article class="step-card"><span>01</span><div class="step-icon">▤</div><h3>Escolha o serviço</h3><p>Filtre o catálogo por categoria, veja limites e preço e selecione o serviço.</p></article>
+          <article class="step-card"><span>02</span><div class="step-icon">◎</div><h3>Crie o pedido</h3><p>Informe quantidade e link. O sistema valida saldo, limites e regras operacionais.</p></article>
+          <article class="step-card"><span>03</span><div class="step-icon">⌁</div><h3>Envio via API</h3><p>O pedido é encaminhado automaticamente ao fornecedor vinculado ao serviço.</p></article>
+          <article class="step-card"><span>04</span><div class="step-icon">↻</div><h3>Acompanhe o status</h3><p>O painel sincroniza o retorno do fornecedor até a conclusão do pedido.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="ia" class="section section-white">
+      <div class="shell ai-showcase">
+        <div class="ai-copy"><span class="eyebrow">CATÁLOGO ASSISTIDO POR IA</span><h2>A IA organiza. O fornecedor continua sendo a origem.</h2><p>O sistema recebe os textos do fornecedor, preserva código, preço, mínimo e máximo, e usa a IA para limpar títulos, agrupar categorias e gerar descrições objetivas. Nenhum serviço é inventado pela IA.</p><div class="feature-checks"><span>✓ Texto original preservado</span><span>✓ Categorização automática</span><span>✓ Código do fornecedor mantido</span><span>✓ Revisão e auditoria no Super ADM</span></div></div>
+        <div class="transform-card"><div class="transform-label">TEXTO DO FORNECEDOR</div><div class="raw-service">7421 | INSTAGRAM FOLLOWERS HQ [MAX 50K] [30 DAYS]</div><div class="transform-arrow">↓ IA organiza</div><div class="clean-service"><span class="social-icon instagram">◎</span><div><small>Instagram</small><strong>Seguidores HQ — 30 dias</strong><p>Código 7421 · limites e preço preservados</p></div></div></div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <div class="shell cta-box"><div><span class="eyebrow">PRONTO PARA USAR</span><h2>Entre no painel e faça seu primeiro pedido.</h2><p>Saldo, pedidos, pagamentos, extrato e recomendações em uma central própria do cliente.</p></div><button class="btn btn-primary btn-lg" type="button" data-auth="register">Criar minha conta</button></div>
     </section>
   </main>
 
-  <footer><div class="shell footer-inner"><span>© 2026 SuperAmplitude</span><span>SMM com governança de IA</span></div></footer>
+  <footer class="site-footer"><div class="shell footer-inner"><a class="brand" href="#inicio"><span class="brand-mark">S</span><span><strong>SMM</strong><small>SuperAmplitude</small></span></a><div><a href="/panel/">Painel do cliente</a><a href="/admin/">Super ADM</a></div><small>© 2026 SuperAmplitude</small></div></footer>
 
-  <dialog id="authDialog">
-    <form method="dialog" class="dialog-head"><strong id="authTitle">Entrar</strong><button aria-label="Fechar">×</button></form>
-    <div class="tabs"><button id="loginTab" class="active">Entrar</button><button id="registerTab">Criar conta</button></div>
-    <form id="authForm" class="form-grid">
-      <label id="nameField" class="full hidden">Nome<input name="name"></label>
-      <label class="full">E-mail<input name="email" type="email" required></label>
-      <label class="full">Senha<input name="password" type="password" minlength="10" required></label>
-      <button class="btn full" type="submit">Continuar</button>
-      <div id="authResult" class="result full hidden"></div>
+  <dialog id="authDialog" class="auth-dialog">
+    <div class="dialog-head"><div><span class="eyebrow">SMM SUPERAMPLITUDE</span><h2 id="authTitle">Entrar</h2></div><button id="closeDialog" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+    <div class="auth-tabs"><button id="loginTab" class="active" type="button">Entrar</button><button id="registerTab" type="button">Criar conta</button></div>
+    <form id="authForm" class="auth-form">
+      <label id="nameField" class="hidden">Nome completo<input name="name" autocomplete="name"></label>
+      <label>E-mail<input name="email" type="email" autocomplete="email" required></label>
+      <label>Senha<input name="password" type="password" minlength="10" autocomplete="current-password" required><small>Mínimo de 10 caracteres.</small></label>
+      <button class="btn btn-primary btn-block" type="submit">Continuar</button>
+      <div id="authResult" class="message hidden"></div>
     </form>
   </dialog>
 
