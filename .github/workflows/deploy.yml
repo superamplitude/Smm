@@ -35,9 +35,21 @@ jobs:
           node --check src/admin-integrations.js
           npm test
 
-      - name: Security audit
+      - name: Build dependency lock and security audit
         run: |
+          if [ ! -f package-lock.json ]; then
+            npm install --package-lock-only --ignore-scripts --no-fund
+          fi
           npm audit --omit=dev --audit-level=high
+
+      - name: Preserve generated dependency lock
+        if: ${{ hashFiles('package-lock.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: smm-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 1
 
   deploy:
     name: Production deploy
