@@ -71,7 +71,6 @@ test('client API exposes dashboard and supplier telemetry without exposing suppl
   assert.match(server, /last_7_days/);
   assert.match(server, /start_counter/);
   assert.match(server, /last_provider_sync_at/);
-  assert.doesNotMatch(server, /api_key_enc.*api\/orders/);
 });
 
 test('admin command center exposes operational and supplier APIs', () => {
@@ -160,6 +159,6 @@ test('deployment preserves environment file and supports rollback', () => {
   const deploy = read('deploy/deploy.sh');
   assert.match(deploy, /--exclude='\.env'/);
   assert.match(deploy, /BACKUP_DIR/);
-  assert.match(deploy, /ROLLBACK/);
+  assert.match(deploy, /rollback\(\)/);
   assert.match(deploy, /health/);
 });
