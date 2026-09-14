@@ -12,11 +12,17 @@ log(){ printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 fail(){ echo "ERRO: $*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || fail "execute como root"
-[[ -n "$RUNNER_TOKEN" ]] || fail "informe o token: SMM_RUNNER_TOKEN=... bash deploy/install-runner.sh"
+
+if [[ -z "$RUNNER_TOKEN" ]]; then
+  printf 'Cole agora o token do runner GitHub para superamplitude/Smm: '
+  IFS= read -r -s RUNNER_TOKEN
+  printf '\n'
+fi
+[[ -n "$RUNNER_TOKEN" ]] || fail "token não informado"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y curl jq tar gzip ca-certificates
+apt-get install -y curl jq tar gzip ca-certificates sudo
 
 id "$RUNNER_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /bin/bash "$RUNNER_USER"
 mkdir -p "$RUNNER_DIR"
@@ -44,9 +50,6 @@ chown -R "$RUNNER_USER:$RUNNER_USER" "$RUNNER_DIR"
 
 log "Configurando runner para $REPO_URL"
 cd "$RUNNER_DIR"
-if [[ -f .runner ]]; then
-  sudo -u "$RUNNER_USER" ./config.sh remove --token "$RUNNER_TOKEN" || true
-fi
 sudo -u "$RUNNER_USER" ./config.sh \
   --url "$REPO_URL" \
   --token "$RUNNER_TOKEN" \
@@ -55,6 +58,8 @@ sudo -u "$RUNNER_USER" ./config.sh \
   --work "_work" \
   --unattended \
   --replace
+
+unset RUNNER_TOKEN
 
 log "Instalando serviço do runner"
 ./svc.sh install "$RUNNER_USER" || true
