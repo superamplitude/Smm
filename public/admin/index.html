@@ -8,106 +8,128 @@
   <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
-  <div class="admin-app">
+  <div id="loginScreen" class="login-screen">
+    <form id="adminLoginForm" class="login-card">
+      <div class="brand-block"><span class="logo">S</span><div><strong>SMM SuperAmplitude</strong><small>Super Administração</small></div></div>
+      <h1>Acesso administrativo</h1>
+      <p>Entre com a conta de administrador.</p>
+      <label>E-mail<input name="email" type="email" autocomplete="username" required></label>
+      <label>Senha<input name="password" type="password" autocomplete="current-password" minlength="10" required></label>
+      <button class="primary" type="submit">Entrar no Super ADM</button>
+      <div id="loginMessage" class="message hidden"></div>
+      <a class="back-link" href="/">← Voltar ao portal</a>
+    </form>
+  </div>
+
+  <div id="adminApp" class="admin-app hidden">
     <aside class="sidebar">
-      <a class="brand-block brand-sidebar" href="/admin/"><span class="logo">S</span><div><strong>SMM</strong><small>SuperAmplitude</small></div></a>
+      <a class="brand-block brand-sidebar" href="#overview"><span class="logo">S</span><div><strong>SMM</strong><small>SuperAmplitude</small></div></a>
       <div class="sidebar-label">SUPER ADMIN</div>
       <nav>
         <a class="nav-item active" href="#overview"><span>▦</span>Visão geral</a>
-        <a class="nav-item" href="#orders-admin"><span>◎</span>Pedidos</a>
-        <a class="nav-item" href="#clients-admin"><span>◉</span>Clientes</a>
-        <a class="nav-item" href="#payments-admin"><span>◇</span>Pagamentos</a>
-        <a class="nav-item" href="#services-admin"><span>▤</span>Serviços</a>
-        <a class="nav-item" href="#ai-admin"><span>✦</span>Inteligência IA</a>
-        <a class="nav-item" href="#audit-admin"><span>☷</span>Auditoria</a>
+        <a class="nav-item" href="#suppliers"><span>⌁</span>Servidores</a>
+        <a class="nav-item" href="#ais"><span>✦</span>IAs</a>
+        <a class="nav-item" href="#catalog-ai"><span>▤</span>Catálogo IA</a>
+        <a class="nav-item" href="#services"><span>◫</span>Serviços</a>
+        <a class="nav-item" href="#orders"><span>◎</span>Pedidos</a>
+        <a class="nav-item" href="#clients"><span>◉</span>Clientes</a>
+        <a class="nav-item" href="#payments"><span>◇</span>Pagamentos</a>
+        <a class="nav-item" href="#audit"><span>☷</span>Auditoria</a>
       </nav>
-      <div class="sidebar-foot"><a class="side-link" href="/">Portal público</a></div>
+      <div class="sidebar-foot"><a class="side-link" href="/">Portal público</a><button id="logoutBtn" class="side-link danger">Sair</button></div>
     </aside>
 
     <main class="workspace">
       <header class="admin-topbar">
         <div><span class="kicker">SUPER ADMIN</span><h1>Centro de comando</h1></div>
-        <div class="top-actions"><span id="userBadge" class="system-status">Não autenticado</span><button id="authBtn" class="secondary">Entrar</button></div>
+        <div class="top-actions"><span id="systemStatus" class="system-status">● verificando</span><button id="refreshAll" class="secondary">Atualizar tudo</button><div class="admin-user"><strong id="adminName">Administrador</strong><small id="adminEmail">—</small></div></div>
       </header>
 
-      <section class="admin-content">
-        <div id="guestPanel" class="login-panel panel">
-          <span class="kicker">ACESSO RESTRITO</span>
-          <h2>Entre com a conta administrativa.</h2>
-          <p>O Super ADM é separado da área do cliente e só é exibido para administradores.</p>
-          <button class="primary" data-open-auth="login">Entrar no Super ADM</button>
-        </div>
+      <div class="admin-content">
+        <section id="overview" class="admin-section">
+          <div class="hero-admin"><div><span class="kicker">OPERAÇÃO</span><h2>Visão geral</h2><p>Pedidos, servidores, IA, pagamentos e catálogo em uma única operação.</p></div><button id="briefBtn" class="primary">Gerar briefing IA</button></div>
+          <div class="metrics">
+            <article><span>Clientes</span><strong id="metricUsers">—</strong><small id="metricUsersMeta">—</small></article>
+            <article><span>Pedidos</span><strong id="metricOrders">—</strong><small id="metricOrdersMeta">—</small></article>
+            <article><span>Receita</span><strong id="metricRevenue">—</strong><small id="metricRevenueMeta">—</small></article>
+            <article><span>Integrações</span><strong id="metricIntegrations">—</strong><small id="metricIntegrationsMeta">—</small></article>
+          </div>
+          <div id="briefCard" class="panel brief-card"><p>A IA operacional pode resumir a saúde da plataforma e os pontos de atenção.</p></div>
+        </section>
 
-        <div id="userPanel" class="hidden">
-          <div class="admin-account-strip"><div><span>Conta</span><strong id="accountName">—</strong></div><div><span>Perfil</span><strong id="accountRole">—</strong></div><div><span>Saldo operacional</span><strong id="balance">R$ 0,00</strong></div></div>
-
-          <section id="adminPanel" class="admin hidden">
-            <div id="overview" class="hero-admin">
-              <div><span class="kicker">CENTRO DE COMANDO</span><h2>Operação administrativa.</h2><p>Pedidos, clientes, pagamentos, catálogo, auditoria e decisões da IA sem misturar com a área do cliente.</p></div>
-              <div class="admin-actions"><button id="loadAiBrief" class="secondary">Briefing IA</button><button id="refreshAdmin" class="primary">Atualizar tudo</button></div>
-            </div>
-
-            <div class="metrics">
-              <article><span>Clientes</span><strong id="adminUsers">—</strong><small id="adminUsersMeta">—</small></article>
-              <article><span>Pedidos</span><strong id="adminOrders">—</strong><small id="adminOrdersMeta">—</small></article>
-              <article><span>Receita confirmada</span><strong id="adminRevenue">—</strong><small id="adminRevenueMeta">—</small></article>
-              <article><span>IA operacional</span><strong id="adminAi">—</strong><small id="adminAiMeta">—</small></article>
-            </div>
-
-            <div id="aiBrief" class="panel brief-card"><p>A IA operacional pode resumir saúde, alertas e ações recomendadas.</p></div>
-
-            <section id="orders-admin" class="panel admin-section">
-              <div class="panel-head"><div><span class="kicker">OPERAÇÃO</span><h3>Fila de pedidos</h3><p>Status, execução e devolução controlada.</p></div><span class="badge">até 200</span></div>
-              <div id="adminOrdersTable" class="table-wrap"><div class="empty">Carregando pedidos…</div></div>
-            </section>
-
-            <div class="dashboard-columns">
-              <section id="clients-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">CONTAS</span><h3>Clientes</h3><p>Saldo, uso e bloqueio administrativo.</p></div></div><div id="adminUsersTable" class="table-wrap"><div class="empty">Carregando clientes…</div></div></section>
-              <section id="payments-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">FINANCEIRO</span><h3>Pagamentos</h3><p>Histórico dos gateways.</p></div></div><div id="adminPaymentsTable" class="table-wrap"><div class="empty">Carregando pagamentos…</div></div></section>
-            </div>
-
-            <div class="dashboard-columns">
-              <section id="ai-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">GOVERNANÇA</span><h3>Decisões da IA</h3><p>Rastreabilidade e revisão humana.</p></div></div><div id="adminAiTable" class="table-wrap"><div class="empty">Carregando decisões…</div></div></section>
-              <section id="services-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">CATÁLOGO</span><h3>Serviços</h3><p>Preço, faixa e disponibilidade.</p></div></div><div id="adminServicesTable" class="table-wrap"><div class="empty">Carregando serviços…</div></div></section>
-            </div>
-
-            <section id="audit-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">RASTREABILIDADE</span><h3>Auditoria</h3><p>Ações sensíveis registradas pela plataforma.</p></div></div><div id="adminAuditTable" class="table-wrap"><div class="empty">Carregando auditoria…</div></div></section>
-
-            <form id="serviceForm" class="panel form-card admin-section">
-              <div><span class="kicker">CATÁLOGO</span><h3>Cadastrar serviço</h3></div>
-              <div class="form-row"><label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label></div>
-              <label>Descrição<textarea name="description" rows="4"></textarea></label>
-              <div class="form-row"><label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço por unidade<input name="price_per_unit" type="number" step="0.01" min="0.01" required></label></div>
-              <div class="form-row"><label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label></div>
-              <button class="primary" type="submit">Salvar serviço</button>
+        <section id="suppliers" class="admin-section">
+          <div class="view-head"><div><span class="kicker">FORNECEDORES</span><h2>Servidores / APIs</h2><p>Cadastre o servidor do fornecedor que receberá os pedidos dos clientes diretamente via API.</p></div></div>
+          <div class="two-columns integration-grid">
+            <form id="supplierForm" class="panel form-card">
+              <h3>Adicionar servidor</h3>
+              <label>Nome do fornecedor<input name="name" placeholder="Ex.: Fornecedor Principal" required></label>
+              <label>Tipo de API<select name="api_type"><option value="smm_v2">SMM Panel API v2</option><option value="generic_json">API JSON genérica</option></select></label>
+              <label>Base URL<input name="base_url" type="url" placeholder="https://api.fornecedor.com/api/v2" required></label>
+              <label>API Key / Token<input name="api_key" type="password" autocomplete="new-password" required></label>
+              <div class="form-row"><label>Endpoint de serviços<input name="services_endpoint" placeholder="/services ou vazio para SMM v2"></label><label>Endpoint de pedidos<input name="orders_endpoint" placeholder="/orders ou vazio para SMM v2"></label></div>
+              <div class="form-row"><label>Endpoint de status<input name="status_endpoint" placeholder="/orders/{id}"></label><label>Webhook / Callback<input name="webhook_url" placeholder="https://seusite.com/webhook"></label></div>
+              <label class="check-label"><input name="is_primary" type="checkbox" value="1"> Definir como servidor principal</label>
+              <button class="primary" type="submit">Salvar servidor</button>
+              <div id="supplierMessage" class="message hidden"></div>
             </form>
+            <section class="panel"><div class="panel-head"><div><h3>Servidores cadastrados</h3><p>Teste, sincronize e processe o catálogo pela IA.</p></div></div><div id="suppliersTable" class="table-wrap"><div class="empty">Carregando…</div></div></section>
+          </div>
+        </section>
+
+        <section id="ais" class="admin-section">
+          <div class="view-head"><div><span class="kicker">INTELIGÊNCIA ARTIFICIAL</span><h2>Configurar IAs</h2><p>Cadastre Gemini ou outra IA compatível. A IA usa o texto recebido do fornecedor para limpar, categorizar e organizar o catálogo.</p></div></div>
+          <div class="two-columns integration-grid">
+            <form id="aiIntegrationForm" class="panel form-card">
+              <h3>Adicionar IA</h3>
+              <label>Nome<input name="name" value="Gemini" required></label>
+              <label>Provedor<select name="provider_type"><option value="gemini">Google Gemini</option><option value="openai_compatible">OpenAI compatível</option></select></label>
+              <label>API Key<input name="api_key" type="password" autocomplete="new-password" required></label>
+              <label>Modelo<input name="model" value="gemini-2.5-flash" required></label>
+              <label>Base URL <small>(opcional para Gemini)</small><input name="base_url" placeholder="https://generativelanguage.googleapis.com/v1beta/openai"></label>
+              <label>Prompt base<textarea name="prompt_base" rows="7" placeholder="Organize e categorize os textos recebidos do fornecedor. Não invente serviços nem altere dados de origem."></textarea></label>
+              <div class="form-row"><label class="check-label"><input name="enabled" type="checkbox" value="1" checked> Ativa</label><label class="check-label"><input name="is_primary" type="checkbox" value="1" checked> IA principal</label></div>
+              <button class="primary" type="submit">Salvar IA</button>
+              <div id="aiIntegrationMessage" class="message hidden"></div>
+            </form>
+            <section class="panel"><div class="panel-head"><div><h3>IAs cadastradas</h3><p>Chaves ficam protegidas no servidor e nunca são exibidas novamente.</p></div></div><div id="aiIntegrationsTable" class="table-wrap"><div class="empty">Carregando…</div></div></section>
+          </div>
+        </section>
+
+        <section id="catalog-ai" class="admin-section">
+          <div class="view-head"><div><span class="kicker">CATÁLOGO IA</span><h2>Texto do fornecedor → categorias limpas</h2><p>Sincronize um servidor. A IA trabalha somente os textos recebidos, normaliza nomes e organiza os resultados por categoria.</p></div></div>
+          <section class="panel">
+            <div class="panel-head"><div><h3>Categorias processadas</h3><p>Cards gerados a partir do catálogo do fornecedor.</p></div><select id="catalogSupplierSelect" class="mini-select"><option value="">Selecione um servidor</option></select></div>
+            <div id="categoryCards" class="category-grid"><div class="empty">Selecione e sincronize um servidor.</div></div>
+            <div id="catalogTable" class="table-wrap catalog-table"></div>
           </section>
-        </div>
-      </section>
+        </section>
+
+        <section id="services" class="admin-section">
+          <div class="view-head"><div><span class="kicker">CATÁLOGO PUBLICADO</span><h2>Serviços</h2><p>Todo serviço vendido deve estar vinculado ao servidor e ao código correspondente no fornecedor para envio automático.</p></div></div>
+          <div class="two-columns">
+            <section class="panel"><div id="servicesTable" class="table-wrap"><div class="empty">Carregando serviços…</div></div></section>
+            <form id="serviceForm" class="panel form-card">
+              <h3>Cadastrar serviço</h3>
+              <div class="form-row"><label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label></div>
+              <label>Descrição<textarea name="description" rows="3"></textarea></label>
+              <div class="form-row"><label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço por unidade<input name="price_per_unit" type="number" step="0.0001" min="0.0001" required></label></div>
+              <div class="form-row"><label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label></div>
+              <div class="form-row"><label>Servidor<select id="serviceSupplierSelect" name="supplier_id"><option value="">Sem vínculo</option></select></label><label>Código do serviço no fornecedor<input name="provider_code" placeholder="Ex.: 1234"></label></div>
+              <button class="primary" type="submit">Salvar serviço</button>
+              <div id="serviceMessage" class="message hidden"></div>
+            </form>
+          </div>
+        </section>
+
+        <section id="orders" class="admin-section"><div class="view-head"><div><span class="kicker">PEDIDOS</span><h2>Pedidos</h2><p>Pedidos do cliente são enviados diretamente ao fornecedor e o status retorna automaticamente.</p></div><button id="syncOrdersBtn" class="secondary">Sincronizar status agora</button></div><section class="panel"><div id="ordersTable" class="table-wrap"></div></section></section>
+        <section id="clients" class="admin-section"><div class="view-head"><div><span class="kicker">CLIENTES</span><h2>Clientes</h2></div></div><section class="panel"><div id="clientsTable" class="table-wrap"></div></section></section>
+        <section id="payments" class="admin-section"><div class="view-head"><div><span class="kicker">FINANCEIRO</span><h2>Pagamentos</h2></div></div><section class="panel"><div id="paymentsTable" class="table-wrap"></div></section></section>
+        <section id="ai-decisions" class="admin-section"><div class="view-head"><div><span class="kicker">GOVERNANÇA</span><h2>Decisões da IA</h2></div></div><section class="panel"><div id="aiDecisionsTable" class="table-wrap"></div></section></section>
+        <section id="audit" class="admin-section"><div class="view-head"><div><span class="kicker">AUDITORIA</span><h2>Auditoria</h2></div></div><section class="panel"><div id="auditTable" class="table-wrap"></div></section></section>
+      </div>
     </main>
   </div>
 
-  <div class="hidden" aria-hidden="true">
-    <div id="servicesGrid"></div><select id="serviceSelect"><option value="">—</option></select>
-    <form id="aiForm"><input name="network"><input name="budget"><textarea name="goal"></textarea><div id="aiResult"></div></form>
-    <form id="orderForm"><input name="quantity" value="1"><input name="target_url"><div id="orderResult"></div></form>
-    <form id="paymentForm"><input name="amount"><select name="gateway"><option value="mercadopago">Mercado Pago</option></select><div id="paymentResult"></div></form>
-    <div id="ordersTable"></div><div id="walletTable"></div>
-    <button id="reloadServices"></button><button id="refreshOrders"></button><button id="refreshWallet"></button>
-  </div>
-
-  <dialog id="authDialog">
-    <form method="dialog" class="dialog-head"><strong id="authTitle">Entrar</strong><button aria-label="Fechar">×</button></form>
-    <div class="tabs"><button id="loginTab" class="active">Entrar</button><button id="registerTab">Criar conta</button></div>
-    <form id="authForm" class="auth-form">
-      <label id="nameField" class="hidden">Nome<input name="name"></label>
-      <label>E-mail<input name="email" type="email" required></label>
-      <label>Senha<input name="password" type="password" minlength="10" required></label>
-      <button class="primary" type="submit">Continuar</button>
-      <div id="authResult" class="message hidden"></div>
-    </form>
-  </dialog>
-
-  <script src="/app.js" defer></script>
+  <script src="/admin/admin.js" defer></script>
 </body>
 </html>
