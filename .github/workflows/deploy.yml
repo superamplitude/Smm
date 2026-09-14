@@ -28,4 +28,4 @@ jobs:
       - name: Deploy locally on VPS
         run: |
           chmod +x deploy/deploy.sh
-          sudo -E deploy/deploy.sh
+          deploy/deploy.sh
