@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS orders (
   quantity INT NOT NULL,
   amount DECIMAL(12,2) NOT NULL,
   status ENUM('pending','processing','completed','partial','cancelled','refunded') NOT NULL DEFAULT 'pending',
+  funds_refunded TINYINT(1) NOT NULL DEFAULT 0,
   provider_order_id VARCHAR(190) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -50,6 +51,20 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_payments_user FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS wallet_transactions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  type ENUM('credit','debit','refund','adjustment') NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  reference_type VARCHAR(40) NULL,
+  reference_id BIGINT UNSIGNED NULL,
+  description VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_wallet_user_created (user_id, created_at),
+  INDEX idx_wallet_reference (reference_type, reference_id),
+  CONSTRAINT fk_wallet_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
