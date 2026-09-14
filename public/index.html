@@ -81,7 +81,7 @@
             <h3 class="full">Novo pedido</h3>
             <label class="full">Serviço<select name="service_id" id="serviceSelect" required></select></label>
             <label>Quantidade<input name="quantity" type="number" min="1" required></label>
-            <label>Destino<input name="target_url" type="url" placeholder="https://…" required></label>
+            <label>URL de referência/destino<input name="target_url" type="url" placeholder="https://…" required></label>
             <button class="btn full" type="submit">Enviar para análise da IA</button>
             <div id="orderResult" class="result full hidden"></div>
           </form>
@@ -94,6 +94,7 @@
           </form>
         </div>
         <div class="panel table-panel"><div class="section-head"><h3>Meus pedidos</h3><button id="refreshOrders" class="btn btn-ghost btn-small">Atualizar</button></div><div id="ordersTable"></div></div>
+        <div class="panel table-panel"><div class="section-head"><h3>Extrato da carteira</h3><button id="refreshWallet" class="btn btn-ghost btn-small">Atualizar</button></div><div id="walletTable"></div></div>
         <section id="adminPanel" class="admin hidden">
           <div class="section-head"><div><span class="eyebrow">ADMIN</span><h2>Centro de comando da IA</h2></div><button id="loadAiBrief" class="btn btn-small">Gerar briefing</button></div>
           <div id="aiBrief" class="panel"><p>A IA operacional pode resumir saúde, alertas e ações recomendadas.</p></div>
@@ -101,8 +102,8 @@
             <h3 class="full">Cadastrar serviço</h3>
             <label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label>
             <label class="full">Descrição<textarea name="description" rows="3"></textarea></label>
-            <label>Unidade<input name="unit" value="1000"></label><label>Preço / 1000<input name="price_per_1000" type="number" step="0.0001" min="0.0001" required></label>
-            <label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="100000"></label>
+            <label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço por unidade<input name="price_per_unit" type="number" step="0.01" min="0.01" required></label>
+            <label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label>
             <button class="btn full">Salvar serviço</button>
           </form>
         </section>
