@@ -60,3 +60,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   ip VARCHAR(64) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS ai_decisions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NULL,
+  decision_type VARCHAR(80) NOT NULL,
+  input_json JSON NULL,
+  output_json JSON NULL,
+  status ENUM('completed','fallback','failed') NOT NULL DEFAULT 'completed',
+  reviewed_by BIGINT UNSIGNED NULL,
+  reviewed_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_ai_type_created (decision_type, created_at),
+  INDEX idx_ai_user (user_id)
+);
