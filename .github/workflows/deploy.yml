@@ -24,6 +24,7 @@ jobs:
           npm --version
           node --check server.js
           node --check public/app.js
+          npm test
 
       - name: Deploy locally on VPS
         run: |
