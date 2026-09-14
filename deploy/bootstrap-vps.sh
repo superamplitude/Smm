@@ -9,6 +9,8 @@ DB_NAME="${SMM_DB_NAME:-superamplitude_smm}"
 DB_USER="${SMM_DB_USER:-superamplitude_smm}"
 SERVICE="${SMM_SERVICE_NAME:-superamplitude-smm}"
 ENV_FILE="$APP_DIR/.env"
+RUNNER_USER="${SMM_RUNNER_USER:-${SUDO_USER:-root}}"
+DEPLOY_GROUP="smmdeploy"
 
 log(){ printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 fail(){ echo "ERRO: $*" >&2; exit 1; }
@@ -19,7 +21,7 @@ rand(){ openssl rand -hex "$1"; }
 log "Instalando utilitários essenciais"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y curl ca-certificates git rsync openssl
+apt-get install -y curl ca-certificates git rsync openssl sudo
 
 if ! command -v node >/dev/null || [[ "$(node -p 'Number(process.versions.node.split(`.`)[0])' 2>/dev/null || echo 0)" -lt 20 ]]; then
   log "Instalando Node.js 20"
@@ -39,9 +41,24 @@ if ! command -v nginx >/dev/null; then
   systemctl enable --now nginx
 fi
 
+getent group "$DEPLOY_GROUP" >/dev/null || groupadd "$DEPLOY_GROUP"
 id smmapp >/dev/null 2>&1 || useradd --system --create-home --home-dir "$APP_ROOT" --shell /usr/sbin/nologin smmapp
+usermod -aG "$DEPLOY_GROUP" smmapp
+
+if [[ "$RUNNER_USER" != "root" ]]; then
+  id "$RUNNER_USER" >/dev/null 2>&1 || fail "usuário do runner '$RUNNER_USER' não existe; defina SMM_RUNNER_USER corretamente"
+  usermod -aG "$DEPLOY_GROUP" "$RUNNER_USER"
+  cat >"/etc/sudoers.d/${SERVICE}-runner" <<SUDOERS
+$RUNNER_USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart $SERVICE
+SUDOERS
+  chmod 440 "/etc/sudoers.d/${SERVICE}-runner"
+  visudo -cf "/etc/sudoers.d/${SERVICE}-runner" >/dev/null
+fi
+
 mkdir -p "$APP_DIR" "$APP_ROOT/backups"
-chown -R smmapp:smmapp "$APP_ROOT"
+chown -R smmapp:"$DEPLOY_GROUP" "$APP_ROOT"
+chmod -R g+rwX "$APP_ROOT"
+find "$APP_ROOT" -type d -exec chmod g+s {} +
 
 if [[ ! -f "$ENV_FILE" ]]; then
   log "Criando banco e configuração inicial"
@@ -84,11 +101,13 @@ PAYPAL_MODE=live
 ADMIN_EMAIL=admin@superamplitude.com
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 ENV
-  chmod 600 "$ENV_FILE"
-  chown smmapp:smmapp "$ENV_FILE"
+  chmod 640 "$ENV_FILE"
+  chown smmapp:"$DEPLOY_GROUP" "$ENV_FILE"
   printf '\nADMIN_INICIAL=admin@superamplitude.com\nADMIN_PASSWORD=%s\n' "$ADMIN_PASSWORD"
 else
   log "Configuração existente preservada em $ENV_FILE"
+  chown smmapp:"$DEPLOY_GROUP" "$ENV_FILE"
+  chmod 640 "$ENV_FILE"
 fi
 
 log "Configurando systemd"
@@ -100,7 +119,7 @@ After=network.target mariadb.service
 [Service]
 Type=simple
 User=smmapp
-Group=smmapp
+Group=$DEPLOY_GROUP
 WorkingDirectory=$APP_DIR
 EnvironmentFile=$ENV_FILE
 ExecStart=/usr/bin/node $APP_DIR/server.js
@@ -152,5 +171,6 @@ log "Bootstrap concluído"
 echo "DOMAIN=$DOMAIN"
 echo "APP_DIR=$APP_DIR"
 echo "PORT=$PORT"
+echo "RUNNER_USER=$RUNNER_USER"
 echo "ENV_FILE=$ENV_FILE"
-echo "PRÓXIMO_PASSO=registre/inicie o GitHub runner e execute o workflow Deploy SMM SuperAmplitude"
+echo "PRÓXIMO_PASSO=registre/inicie o GitHub runner; o workflow Deploy SMM SuperAmplitude fará a publicação"
