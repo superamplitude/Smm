@@ -12,10 +12,10 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 log(){ printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 fail(){ echo "ERRO: $*" >&2; exit 1; }
 
-[[ $EUID -eq 0 ]] || fail "execute com sudo/root"
 command -v node >/dev/null || fail "Node.js não instalado"
 command -v npm >/dev/null || fail "npm não instalado"
 command -v rsync >/dev/null || fail "rsync não instalado"
+command -v curl >/dev/null || fail "curl não instalado"
 
 log "Validando código"
 node --check "$SOURCE_DIR/server.js"
@@ -26,7 +26,7 @@ rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 
 log "Montando release"
-rsync -a --delete \
+rsync -rlptD --delete \
   --exclude='.git/' \
   --exclude='.github/' \
   --exclude='node_modules/' \
@@ -34,7 +34,7 @@ rsync -a --delete \
   "$SOURCE_DIR/" "$RELEASE_DIR/"
 
 if [[ -f "$APP_DIR/.env" ]]; then
-  cp -a "$APP_DIR/.env" "$RELEASE_DIR/.env"
+  cp "$APP_DIR/.env" "$RELEASE_DIR/.env"
 else
   fail "Arquivo $APP_DIR/.env não existe. Execute deploy/bootstrap-vps.sh primeiro."
 fi
@@ -42,26 +42,21 @@ fi
 log "Instalando dependências de produção"
 cd "$RELEASE_DIR"
 npm install --omit=dev --no-audit --no-fund
-
-log "Testando conexão e inicialização básica"
 node --check server.js
 
 if [[ -d "$APP_DIR" ]]; then
   BACKUP="$BACKUP_ROOT/site_${STAMP}"
   mkdir -p "$BACKUP"
-  rsync -a --exclude='node_modules/' "$APP_DIR/" "$BACKUP/"
+  rsync -rlptD --exclude='node_modules/' "$APP_DIR/" "$BACKUP/"
 fi
 
 log "Publicando release"
-rsync -a --delete --exclude='.env' "$RELEASE_DIR/" "$APP_DIR/"
-cp -a "$RELEASE_DIR/.env" "$APP_DIR/.env"
+rsync -rlptD --delete --exclude='.env' "$RELEASE_DIR/" "$APP_DIR/"
+cp "$RELEASE_DIR/.env" "$APP_DIR/.env"
 rm -rf "$RELEASE_DIR"
 
-chown -R smmapp:smmapp "$APP_DIR" 2>/dev/null || true
-
 log "Reiniciando serviço"
-systemctl daemon-reload
-systemctl restart "$SERVICE_NAME"
+sudo systemctl restart "$SERVICE_NAME"
 systemctl is-active --quiet "$SERVICE_NAME" || {
   journalctl -u "$SERVICE_NAME" -n 80 --no-pager || true
   fail "serviço não iniciou"
