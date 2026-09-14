@@ -1,0 +1,31 @@
+name: Deploy SMM SuperAmplitude
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: smm-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Production deploy
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate source
+        run: |
+          node --version
+          npm --version
+          node --check server.js
+          node --check public/app.js
+
+      - name: Deploy locally on VPS
+        run: |
+          chmod +x deploy/deploy.sh
+          sudo -E deploy/deploy.sh
