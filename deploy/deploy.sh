@@ -17,14 +17,13 @@ NEW_PUBLISHED=0
 umask 0002
 
 log(){ printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
-fail(){ echo "ERRO: $*" >&2; exit 1; }
 
 cleanup_release() {
   [[ -d "$RELEASE_DIR" ]] && rm -rf "$RELEASE_DIR" || true
 }
 
 rollback() {
-  local rc=$?
+  local rc="${1:-1}"
   trap - ERR INT TERM
 
   if [[ "$NEW_PUBLISHED" -eq 1 && "$OLD_MOVED" -eq 1 && -d "$BACKUP_DIR" ]]; then
@@ -39,7 +38,15 @@ rollback() {
   cleanup_release
   exit "$rc"
 }
-trap rollback ERR INT TERM
+
+fail() {
+  echo "ERRO: $*" >&2
+  rollback 1
+}
+
+trap 'rollback $?' ERR
+trap 'rollback 130' INT
+trap 'rollback 143' TERM
 
 command -v node >/dev/null || fail "Node.js não instalado"
 command -v npm >/dev/null || fail "npm não instalado"
@@ -86,25 +93,24 @@ NEW_PUBLISHED=1
 
 log "Reiniciando serviço"
 sudo systemctl restart "$SERVICE_NAME"
-systemctl is-active --quiet "$SERVICE_NAME"
+systemctl is-active --quiet "$SERVICE_NAME" || fail "serviço não iniciou"
 
 log "Health check"
-HEALTH_OK=0
+HEALTH_BODY=""
 for i in {1..30}; do
-  if curl -fsS "http://127.0.0.1:${PORT}/health" >/tmp/smm-health.json; then
-    HEALTH_OK=1
+  if HEALTH_BODY="$(curl -fsS "http://127.0.0.1:${PORT}/health" 2>/dev/null)"; then
     break
   fi
+  HEALTH_BODY=""
   sleep 1
 done
 
-if [[ "$HEALTH_OK" -ne 1 ]]; then
-  journalctl -u "$SERVICE_NAME" -n 80 --no-pager || true
+if [[ -z "$HEALTH_BODY" ]]; then
+  systemctl status "$SERVICE_NAME" --no-pager -l || true
   fail "health check falhou"
 fi
 
-cat /tmp/smm-health.json
-echo
+printf '%s\n' "$HEALTH_BODY"
 
 trap - ERR INT TERM
 cleanup_release
