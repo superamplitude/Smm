@@ -26,6 +26,7 @@ jobs:
           npm --version
           node --check server.js
           node --check public/app.js
+          node --check public/panel/panel.js
           node --check public/admin/admin.js
           node --check public/admin/admin-layout.js
           node --check src/ai.js
@@ -54,5 +55,8 @@ jobs:
           curl -fsS http://127.0.0.1:3008/health
           curl -fsS http://127.0.0.1:3008/ready
           curl -fsSI https://smm.superamplitude.com >/dev/null
+          curl -fsS https://smm.superamplitude.com/ | grep -q 'Pedido direto no fornecedor'
+          curl -fsS https://smm.superamplitude.com/panel/ | grep -q 'Novo pedido'
+          curl -fsS https://smm.superamplitude.com/panel/panel.js | grep -q '/api/dashboard'
           curl -fsS https://smm.superamplitude.com/admin/ | grep -q 'Adicionar API Provider'
           curl -fsS https://smm.superamplitude.com/admin/admin-layout.js | grep -q 'active-page'
