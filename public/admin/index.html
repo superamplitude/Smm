@@ -8,69 +8,106 @@
   <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
-  <div id="loginScreen" class="login-screen">
-    <form id="adminLoginForm" class="login-card">
-      <div class="brand-block"><span class="logo">S</span><div><strong>SMM SuperAmplitude</strong><small>Super Administração</small></div></div>
-      <h1>Acesso administrativo</h1>
-      <p>Entre com uma conta de administrador.</p>
-      <label>E-mail<input name="email" type="email" autocomplete="username" required></label>
-      <label>Senha<input name="password" type="password" autocomplete="current-password" minlength="10" required></label>
-      <button class="primary" type="submit">Entrar no Super ADM</button>
-      <div id="loginMessage" class="message hidden"></div>
-      <a class="back-link" href="/">← Voltar ao portal</a>
-    </form>
-  </div>
-
-  <div id="adminApp" class="admin-app hidden">
+  <div class="admin-app">
     <aside class="sidebar">
       <a class="brand-block brand-sidebar" href="/admin/"><span class="logo">S</span><div><strong>SMM</strong><small>SuperAmplitude</small></div></a>
-      <div class="sidebar-label">OPERAÇÃO</div>
-      <nav id="adminNav">
-        <button class="nav-item active" data-view="dashboard"><span>▦</span>Visão geral</button>
-        <button class="nav-item" data-view="orders"><span>◎</span>Pedidos</button>
-        <button class="nav-item" data-view="clients"><span>◉</span>Clientes</button>
-        <button class="nav-item" data-view="payments"><span>◇</span>Pagamentos</button>
-        <button class="nav-item" data-view="services"><span>▤</span>Serviços</button>
-        <button class="nav-item" data-view="ai"><span>✦</span>Inteligência IA</button>
-        <button class="nav-item" data-view="audit"><span>☷</span>Auditoria</button>
+      <div class="sidebar-label">SUPER ADMIN</div>
+      <nav>
+        <a class="nav-item active" href="#overview"><span>▦</span>Visão geral</a>
+        <a class="nav-item" href="#orders-admin"><span>◎</span>Pedidos</a>
+        <a class="nav-item" href="#clients-admin"><span>◉</span>Clientes</a>
+        <a class="nav-item" href="#payments-admin"><span>◇</span>Pagamentos</a>
+        <a class="nav-item" href="#services-admin"><span>▤</span>Serviços</a>
+        <a class="nav-item" href="#ai-admin"><span>✦</span>Inteligência IA</a>
+        <a class="nav-item" href="#audit-admin"><span>☷</span>Auditoria</a>
       </nav>
-      <div class="sidebar-foot">
-        <a href="/" class="side-link">Portal público</a>
-        <button id="logoutBtn" class="side-link danger">Sair</button>
-      </div>
+      <div class="sidebar-foot"><a class="side-link" href="/">Portal público</a></div>
     </aside>
 
     <main class="workspace">
       <header class="admin-topbar">
-        <button id="mobileMenu" class="menu-button" aria-label="Abrir menu">☰</button>
-        <div><span class="kicker">SUPER ADMIN</span><h1 id="pageTitle">Visão geral</h1></div>
-        <div class="top-actions"><span id="systemStatus" class="system-status">● verificando</span><button id="refreshView" class="secondary">Atualizar</button><div class="admin-user"><strong id="adminName">Administrador</strong><small id="adminEmail">—</small></div></div>
+        <div><span class="kicker">SUPER ADMIN</span><h1>Centro de comando</h1></div>
+        <div class="top-actions"><span id="userBadge" class="system-status">Não autenticado</span><button id="authBtn" class="secondary">Entrar</button></div>
       </header>
 
-      <section id="view-dashboard" class="view active">
-        <div class="hero-admin"><div><span class="kicker">CENTRO DE COMANDO</span><h2>Operação sob controle.</h2><p>Indicadores, filas, pagamentos e decisões da IA em uma visão administrativa própria.</p></div><button id="briefBtn" class="primary">Gerar briefing da IA</button></div>
-        <div class="metrics">
-          <article><span>Clientes</span><strong id="metricUsers">—</strong><small id="metricUsersMeta">—</small></article>
-          <article><span>Pedidos</span><strong id="metricOrders">—</strong><small id="metricOrdersMeta">—</small></article>
-          <article><span>Receita confirmada</span><strong id="metricRevenue">—</strong><small id="metricRevenueMeta">—</small></article>
-          <article><span>IA operacional</span><strong id="metricAi">—</strong><small id="metricAiMeta">—</small></article>
+      <section class="admin-content">
+        <div id="guestPanel" class="login-panel panel">
+          <span class="kicker">ACESSO RESTRITO</span>
+          <h2>Entre com a conta administrativa.</h2>
+          <p>O Super ADM é separado da área do cliente e só é exibido para administradores.</p>
+          <button class="primary" data-open-auth="login">Entrar no Super ADM</button>
         </div>
-        <div id="briefCard" class="panel brief-card"><div><span class="kicker">IA OPERACIONAL</span><h3>Resumo executivo</h3></div><p>Use “Gerar briefing da IA” para analisar a operação atual.</p></div>
-        <div class="dashboard-columns">
-          <section class="panel"><div class="panel-head"><div><h3>Pedidos recentes</h3><p>Últimas movimentações da fila.</p></div><button class="text-button" data-go="orders">Ver todos</button></div><div id="dashboardOrders" class="table-wrap"></div></section>
-          <section class="panel"><div class="panel-head"><div><h3>Pagamentos recentes</h3><p>Confirmações e falhas dos gateways.</p></div><button class="text-button" data-go="payments">Ver todos</button></div><div id="dashboardPayments" class="table-wrap"></div></section>
+
+        <div id="userPanel" class="hidden">
+          <div class="admin-account-strip"><div><span>Conta</span><strong id="accountName">—</strong></div><div><span>Perfil</span><strong id="accountRole">—</strong></div><div><span>Saldo operacional</span><strong id="balance">R$ 0,00</strong></div></div>
+
+          <section id="adminPanel" class="admin hidden">
+            <div id="overview" class="hero-admin">
+              <div><span class="kicker">CENTRO DE COMANDO</span><h2>Operação administrativa.</h2><p>Pedidos, clientes, pagamentos, catálogo, auditoria e decisões da IA sem misturar com a área do cliente.</p></div>
+              <div class="admin-actions"><button id="loadAiBrief" class="secondary">Briefing IA</button><button id="refreshAdmin" class="primary">Atualizar tudo</button></div>
+            </div>
+
+            <div class="metrics">
+              <article><span>Clientes</span><strong id="adminUsers">—</strong><small id="adminUsersMeta">—</small></article>
+              <article><span>Pedidos</span><strong id="adminOrders">—</strong><small id="adminOrdersMeta">—</small></article>
+              <article><span>Receita confirmada</span><strong id="adminRevenue">—</strong><small id="adminRevenueMeta">—</small></article>
+              <article><span>IA operacional</span><strong id="adminAi">—</strong><small id="adminAiMeta">—</small></article>
+            </div>
+
+            <div id="aiBrief" class="panel brief-card"><p>A IA operacional pode resumir saúde, alertas e ações recomendadas.</p></div>
+
+            <section id="orders-admin" class="panel admin-section">
+              <div class="panel-head"><div><span class="kicker">OPERAÇÃO</span><h3>Fila de pedidos</h3><p>Status, execução e devolução controlada.</p></div><span class="badge">até 200</span></div>
+              <div id="adminOrdersTable" class="table-wrap"><div class="empty">Carregando pedidos…</div></div>
+            </section>
+
+            <div class="dashboard-columns">
+              <section id="clients-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">CONTAS</span><h3>Clientes</h3><p>Saldo, uso e bloqueio administrativo.</p></div></div><div id="adminUsersTable" class="table-wrap"><div class="empty">Carregando clientes…</div></div></section>
+              <section id="payments-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">FINANCEIRO</span><h3>Pagamentos</h3><p>Histórico dos gateways.</p></div></div><div id="adminPaymentsTable" class="table-wrap"><div class="empty">Carregando pagamentos…</div></div></section>
+            </div>
+
+            <div class="dashboard-columns">
+              <section id="ai-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">GOVERNANÇA</span><h3>Decisões da IA</h3><p>Rastreabilidade e revisão humana.</p></div></div><div id="adminAiTable" class="table-wrap"><div class="empty">Carregando decisões…</div></div></section>
+              <section id="services-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">CATÁLOGO</span><h3>Serviços</h3><p>Preço, faixa e disponibilidade.</p></div></div><div id="adminServicesTable" class="table-wrap"><div class="empty">Carregando serviços…</div></div></section>
+            </div>
+
+            <section id="audit-admin" class="panel admin-section"><div class="panel-head"><div><span class="kicker">RASTREABILIDADE</span><h3>Auditoria</h3><p>Ações sensíveis registradas pela plataforma.</p></div></div><div id="adminAuditTable" class="table-wrap"><div class="empty">Carregando auditoria…</div></div></section>
+
+            <form id="serviceForm" class="panel form-card admin-section">
+              <div><span class="kicker">CATÁLOGO</span><h3>Cadastrar serviço</h3></div>
+              <div class="form-row"><label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label></div>
+              <label>Descrição<textarea name="description" rows="4"></textarea></label>
+              <div class="form-row"><label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço por unidade<input name="price_per_unit" type="number" step="0.01" min="0.01" required></label></div>
+              <div class="form-row"><label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label></div>
+              <button class="primary" type="submit">Salvar serviço</button>
+            </form>
+          </section>
         </div>
       </section>
-
-      <section id="view-orders" class="view"><div class="view-head"><div><span class="kicker">OPERAÇÃO</span><h2>Pedidos</h2><p>Fila completa com atualização de status e devolução controlada.</p></div></div><section class="panel"><div id="ordersTable" class="table-wrap"></div></section></section>
-      <section id="view-clients" class="view"><div class="view-head"><div><span class="kicker">CONTAS</span><h2>Clientes</h2><p>Saldo, uso, situação e bloqueio administrativo.</p></div></div><section class="panel"><div id="clientsTable" class="table-wrap"></div></section></section>
-      <section id="view-payments" class="view"><div class="view-head"><div><span class="kicker">FINANCEIRO</span><h2>Pagamentos</h2><p>Histórico de Mercado Pago e PayPal.</p></div></div><section class="panel"><div id="paymentsTable" class="table-wrap"></div></section></section>
-      <section id="view-services" class="view"><div class="view-head"><div><span class="kicker">CATÁLOGO</span><h2>Serviços</h2><p>Disponibilidade, preço e cadastro de novos serviços.</p></div></div><div class="two-columns"><section class="panel"><div id="servicesTable" class="table-wrap"></div></section><form id="serviceForm" class="panel form-card"><h3>Novo serviço</h3><label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label><label>Descrição<textarea name="description" rows="4"></textarea></label><div class="form-row"><label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço<input name="price_per_unit" type="number" step="0.01" min="0.01" required></label></div><div class="form-row"><label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label></div><button class="primary" type="submit">Cadastrar serviço</button><div id="serviceMessage" class="message hidden"></div></form></div></section>
-      <section id="view-ai" class="view"><div class="view-head"><div><span class="kicker">GOVERNANÇA</span><h2>Inteligência IA</h2><p>Decisões, fallback e revisão humana.</p></div><button id="briefBtnSecondary" class="primary">Gerar briefing</button></div><section class="panel"><div id="aiTable" class="table-wrap"></div></section></section>
-      <section id="view-audit" class="view"><div class="view-head"><div><span class="kicker">RASTREABILIDADE</span><h2>Auditoria</h2><p>Registro das ações sensíveis da plataforma.</p></div></div><section class="panel"><div id="auditTable" class="table-wrap"></div></section></section>
     </main>
   </div>
 
-  <script src="/admin/admin.js" defer></script>
+  <div class="hidden" aria-hidden="true">
+    <div id="servicesGrid"></div><select id="serviceSelect"><option value="">—</option></select>
+    <form id="aiForm"><input name="network"><input name="budget"><textarea name="goal"></textarea><div id="aiResult"></div></form>
+    <form id="orderForm"><input name="quantity" value="1"><input name="target_url"><div id="orderResult"></div></form>
+    <form id="paymentForm"><input name="amount"><select name="gateway"><option value="mercadopago">Mercado Pago</option></select><div id="paymentResult"></div></form>
+    <div id="ordersTable"></div><div id="walletTable"></div>
+    <button id="reloadServices"></button><button id="refreshOrders"></button><button id="refreshWallet"></button>
+  </div>
+
+  <dialog id="authDialog">
+    <form method="dialog" class="dialog-head"><strong id="authTitle">Entrar</strong><button aria-label="Fechar">×</button></form>
+    <div class="tabs"><button id="loginTab" class="active">Entrar</button><button id="registerTab">Criar conta</button></div>
+    <form id="authForm" class="auth-form">
+      <label id="nameField" class="hidden">Nome<input name="name"></label>
+      <label>E-mail<input name="email" type="email" required></label>
+      <label>Senha<input name="password" type="password" minlength="10" required></label>
+      <button class="primary" type="submit">Continuar</button>
+      <div id="authResult" class="message hidden"></div>
+    </form>
+  </dialog>
+
+  <script src="/app.js" defer></script>
 </body>
 </html>
