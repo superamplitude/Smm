@@ -9,12 +9,32 @@ DB_NAME="${SMM_DB_NAME:-superamplitude_smm}"
 DB_USER="${SMM_DB_USER:-superamplitude_smm}"
 SERVICE="${SMM_SERVICE_NAME:-superamplitude-smm}"
 ENV_FILE="$APP_DIR/.env"
-RUNNER_USER="${SMM_RUNNER_USER:-${SUDO_USER:-root}}"
+RUNNER_USER="${SMM_RUNNER_USER:-smmrunner}"
 DEPLOY_GROUP="smmdeploy"
 
 log(){ printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 fail(){ echo "ERRO: $*" >&2; exit 1; }
 rand(){ openssl rand -hex "$1"; }
+
+mysql_admin_exec() {
+  local sql="$1"
+  if mysql -uroot -e 'SELECT 1' >/dev/null 2>&1; then
+    mysql -uroot <<<"$sql"
+    return 0
+  fi
+
+  if command -v clpctl >/dev/null 2>&1; then
+    local master_output connect_cmd
+    master_output="$(clpctl db:show:master-credentials 2>/dev/null || true)"
+    connect_cmd="$(printf '%s\n' "$master_output" | sed -nE 's/.*(mysql[[:space:]].*)/\1/p' | head -n1)"
+    if [[ -n "$connect_cmd" ]]; then
+      eval "$connect_cmd" <<<"$sql"
+      return 0
+    fi
+  fi
+
+  fail "não foi possível autenticar no banco como administrador. No CloudPanel, confirme se 'clpctl db:show:master-credentials' funciona como root."
+}
 
 [[ $EUID -eq 0 ]] || fail "execute como root"
 
@@ -43,17 +63,15 @@ fi
 
 getent group "$DEPLOY_GROUP" >/dev/null || groupadd "$DEPLOY_GROUP"
 id smmapp >/dev/null 2>&1 || useradd --system --create-home --home-dir "$APP_ROOT" --shell /usr/sbin/nologin smmapp
+id "$RUNNER_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /bin/bash "$RUNNER_USER"
 usermod -aG "$DEPLOY_GROUP" smmapp
+usermod -aG "$DEPLOY_GROUP" "$RUNNER_USER"
 
-if [[ "$RUNNER_USER" != "root" ]]; then
-  id "$RUNNER_USER" >/dev/null 2>&1 || fail "usuário do runner '$RUNNER_USER' não existe; defina SMM_RUNNER_USER corretamente"
-  usermod -aG "$DEPLOY_GROUP" "$RUNNER_USER"
-  cat >"/etc/sudoers.d/${SERVICE}-runner" <<SUDOERS
+cat >"/etc/sudoers.d/${SERVICE}-runner" <<SUDOERS
 $RUNNER_USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart $SERVICE
 SUDOERS
-  chmod 440 "/etc/sudoers.d/${SERVICE}-runner"
-  visudo -cf "/etc/sudoers.d/${SERVICE}-runner" >/dev/null
-fi
+chmod 440 "/etc/sudoers.d/${SERVICE}-runner"
+visudo -cf "/etc/sudoers.d/${SERVICE}-runner" >/dev/null
 
 mkdir -p "$APP_DIR" "$APP_ROOT/backups"
 chown -R smmapp:"$DEPLOY_GROUP" "$APP_ROOT"
@@ -66,13 +84,12 @@ if [[ ! -f "$ENV_FILE" ]]; then
   JWT_SECRET="$(rand 48)"
   ADMIN_PASSWORD="Smm!$(rand 12)"
 
-  mysql -uroot <<SQL
-CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  SQL="CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '$DB_USER'@'127.0.0.1' IDENTIFIED BY '$DB_PASS';
 ALTER USER '$DB_USER'@'127.0.0.1' IDENTIFIED BY '$DB_PASS';
 GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'127.0.0.1';
-FLUSH PRIVILEGES;
-SQL
+FLUSH PRIVILEGES;"
+  mysql_admin_exec "$SQL"
 
   cat >"$ENV_FILE" <<ENV
 NODE_ENV=production
@@ -114,7 +131,7 @@ log "Configurando systemd"
 cat >"/etc/systemd/system/$SERVICE.service" <<UNIT
 [Unit]
 Description=SMM SuperAmplitude
-After=network.target mariadb.service
+After=network.target
 
 [Service]
 Type=simple
@@ -173,4 +190,4 @@ echo "APP_DIR=$APP_DIR"
 echo "PORT=$PORT"
 echo "RUNNER_USER=$RUNNER_USER"
 echo "ENV_FILE=$ENV_FILE"
-echo "PRÓXIMO_PASSO=registre/inicie o GitHub runner; o workflow Deploy SMM SuperAmplitude fará a publicação"
+echo "PRÓXIMO_PASSO=instale o runner com deploy/install-runner.sh; ele pedirá o token sem exibi-lo"
