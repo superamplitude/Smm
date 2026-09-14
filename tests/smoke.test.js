@@ -7,7 +7,7 @@ const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('critical production files exist', () => {
-  for (const file of ['server.js','src/db.js','src/ai.js','src/payments.js','src/schema.sql','public/index.html','public/app.js','deploy/deploy.sh','deploy/bootstrap-vps.sh']) {
+  for (const file of ['server.js','src/db.js','src/ai.js','src/payments.js','src/schema.sql','public/index.html','public/app.js','public/admin/index.html','public/admin/admin.css','deploy/deploy.sh','deploy/bootstrap-vps.sh']) {
     assert.equal(fs.existsSync(path.join(root, file)), true, `${file} ausente`);
   }
 });
@@ -58,15 +58,13 @@ test('AI recommendations are grounded in active catalog', () => {
   assert.match(ai, /fallbackRecommendations/);
 });
 
-test('admin UI contains command center surfaces', () => {
-  const html = read('public/index.html');
-  const app = read('public/app.js');
-  for (const id of ['adminOrdersTable','adminUsersTable','adminPaymentsTable','adminAiTable','adminServicesTable','adminAuditTable']) {
-    assert.equal(html.includes(`id="${id}"`), true, `${id} ausente`);
+test('dedicated super admin contains operational surfaces', () => {
+  const html = read('public/admin/index.html');
+  for (const id of ['adminPanel','adminOrdersTable','adminUsersTable','adminPaymentsTable','adminAiTable','adminServicesTable','adminAuditTable']) {
+    assert.equal(html.includes(`id="${id}"`), true, `${id} ausente no Super ADM`);
   }
-  assert.match(app, /loadAdminOverview/);
-  assert.match(app, /loadAdminOrders/);
-  assert.match(app, /loadAdminAudit/);
+  assert.match(html, /\/app\.js/);
+  assert.match(read('public/index.html'), /href="\/admin\/"/);
 });
 
 test('deployment preserves environment file', () => {
