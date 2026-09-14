@@ -53,12 +53,15 @@ command -v npm >/dev/null || fail "npm não instalado"
 command -v rsync >/dev/null || fail "rsync não instalado"
 command -v curl >/dev/null || fail "curl não instalado"
 [[ -f "$APP_DIR/.env" ]] || fail "Arquivo $APP_DIR/.env não existe. Execute deploy/bootstrap-vps.sh primeiro."
+[[ -f "$SOURCE_DIR/package-lock.json" ]] || fail "package-lock.json ausente; dependências de produção não estão travadas"
 [[ -w "$APP_PARENT" ]] || fail "Runner sem permissão de escrita em $APP_PARENT"
 [[ -w "$BACKUP_ROOT" ]] || fail "Runner sem permissão de escrita em $BACKUP_ROOT"
 
 log "Validando código"
 node --check "$SOURCE_DIR/server.js"
 node --check "$SOURCE_DIR/public/app.js"
+node --check "$SOURCE_DIR/public/panel/panel.js"
+node --check "$SOURCE_DIR/public/admin/admin.js"
 
 mkdir -p "$RELEASE_DIR"
 
@@ -77,9 +80,9 @@ log "Preservando configuração de produção"
 cp "$APP_DIR/.env" "$RELEASE_DIR/.env"
 chmod 640 "$RELEASE_DIR/.env"
 
-log "Instalando dependências de produção"
+log "Instalando dependências travadas de produção"
 cd "$RELEASE_DIR"
-npm install --omit=dev --no-audit --no-fund
+npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 node --check server.js
 chmod -R g+rwX "$RELEASE_DIR"
 
