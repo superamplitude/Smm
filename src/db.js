@@ -44,6 +44,10 @@ async function migrateExistingDatabase() {
   await ensureColumn('supplier_servers', 'auto_price_sync', '`auto_price_sync` TINYINT(1) NOT NULL DEFAULT 1 AFTER `rate_divisor`');
   await ensureColumn('supplier_servers', 'last_balance_at', '`last_balance_at` TIMESTAMP NULL AFTER `last_sync_at`');
   await ensureIndex('service_supplier_links', 'idx_supplier_service_code', 'INDEX `idx_supplier_service_code` (`supplier_id`,`supplier_service_code`)');
+
+  await pool.query('ALTER TABLE services MODIFY COLUMN price_per_unit DECIMAL(12,6) NOT NULL');
+  await pool.query('ALTER TABLE service_supplier_links MODIFY COLUMN supplier_cost DECIMAL(18,6) NULL');
+  await pool.query('ALTER TABLE supplier_catalog MODIFY COLUMN supplier_cost DECIMAL(18,6) NULL');
 }
 
 async function initDatabase() {
