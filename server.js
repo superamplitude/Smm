@@ -7,7 +7,19 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const { pool, initDatabase } = require('./src/db');
 const { signUser, authRequired, adminRequired } = require('./src/auth');
-const { analyzeOrder, recommendServices, operationalBrief, startAiScheduler } = require('./src/ai');
+const {
+  analyzeOrder,
+  recommendServices,
+  operationalBrief,
+  startAiScheduler,
+  aiConfigured
+} = require('./src/ai');
+const {
+  submitOrderToSupplier,
+  startSupplierScheduler,
+  syncOpenSupplierOrders
+} = require('./src/suppliers');
+const adminIntegrationsRouter = require('./src/admin-integrations');
 const {
   createMercadoPagoCheckout,
   createPayPalCheckout,
@@ -25,10 +37,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const emailOf = value => String(value || '').trim().toLowerCase();
 const asMoney = value => Math.round(Number(value) * 100) / 100;
-const aiConfigured = () => Boolean(
-  String(process.env.AI_ENABLED || 'true').toLowerCase() === 'true' &&
-  process.env.AI_API_BASE_URL && process.env.AI_API_KEY && process.env.AI_MODEL
-);
 
 function rateLimit({ windowMs = 60000, max = 60 } = {}) {
   const buckets = new Map();
@@ -88,12 +96,40 @@ async function creditApprovedPayment(localPaymentId, externalId) {
   }
 }
 
-app.get('/health', (req, res) => {
+async function refundOrderAfterSupplierFailure(orderId, reason) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query('SELECT * FROM orders WHERE id=? FOR UPDATE', [Number(orderId)]);
+    if (!rows.length) throw new Error('Pedido local não encontrado');
+    const order = rows[0];
+    if (!order.funds_refunded) {
+      await conn.query('UPDATE users SET balance=balance+? WHERE id=?', [order.amount, order.user_id]);
+      await conn.query(
+        'INSERT INTO wallet_transactions (user_id,type,amount,reference_type,reference_id,description) VALUES (?,"refund",?,"order",?,?)',
+        [order.user_id, order.amount, order.id, `Devolução automática: fornecedor não aceitou o pedido #${order.id}`]
+      );
+      await conn.query('UPDATE orders SET status="cancelled",funds_refunded=1 WHERE id=?', [order.id]);
+    }
+    await conn.query(
+      'INSERT INTO supplier_order_events (order_id,event_type,payload) VALUES (?,"submit_failed",?)',
+      [order.id, JSON.stringify({ error: String(reason || 'Falha no fornecedor') })]
+    );
+    await conn.commit();
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
+app.get('/health', async (req, res) => {
   res.json({
     ok: true,
     service: 'superamplitude-smm',
     ai_enabled: String(process.env.AI_ENABLED || 'true').toLowerCase() === 'true',
-    ai_configured: aiConfigured(),
+    ai_configured: await aiConfigured(),
     time: new Date().toISOString()
   });
 });
@@ -105,7 +141,7 @@ app.get('/ready', async (req, res) => {
       ok: true,
       service: 'superamplitude-smm',
       database: 'ready',
-      ai: aiConfigured() ? 'configured' : 'fallback',
+      ai: (await aiConfigured()) ? 'configured' : 'fallback',
       time: new Date().toISOString()
     });
   } catch (error) {
@@ -169,7 +205,7 @@ app.post('/api/ai/recommend', authRequired, async (req, res) => {
 
 app.get('/api/orders', authRequired, async (req, res) => {
   const [rows] = await pool.query(
-    'SELECT o.id,o.target_url,o.quantity,o.amount,o.status,o.created_at,s.name service,s.category FROM orders o JOIN services s ON s.id=o.service_id WHERE o.user_id=? ORDER BY o.id DESC LIMIT 100',
+    'SELECT o.id,o.target_url,o.quantity,o.amount,o.status,o.provider_order_id,o.created_at,s.name service,s.category FROM orders o JOIN services s ON s.id=o.service_id WHERE o.user_id=? ORDER BY o.id DESC LIMIT 100',
     [req.user.id]
   );
   res.json(rows);
@@ -202,6 +238,7 @@ app.post('/api/orders', authRequired, async (req, res) => {
     }
 
     const conn = await pool.getConnection();
+    let localOrderId;
     try {
       await conn.beginTransaction();
       const [users] = await conn.query('SELECT balance,status FROM users WHERE id=? FOR UPDATE', [req.user.id]);
@@ -218,19 +255,47 @@ app.post('/api/orders', authRequired, async (req, res) => {
         'INSERT INTO orders (user_id,service_id,target_url,quantity,amount,status) VALUES (?,?,?,?,?,"pending")',
         [req.user.id, serviceId, targetUrl, quantity, amount]
       );
+      localOrderId = result.insertId;
       await conn.query('UPDATE users SET balance=balance-? WHERE id=?', [amount, req.user.id]);
       await conn.query(
         'INSERT INTO wallet_transactions (user_id,type,amount,reference_type,reference_id,description) VALUES (?,"debit",?,"order",?,?)',
-        [req.user.id, amount, result.insertId, `Pedido #${result.insertId}`]
+        [req.user.id, amount, localOrderId, `Pedido #${localOrderId}`]
       );
       await conn.commit();
-      await audit(req, 'order_created', { orderId: result.insertId, serviceId, quantity, amount, aiDecision: ai.decision, risk: ai.risk_score });
-      return res.status(201).json({ id: result.insertId, amount, status: 'pending', ai });
     } catch (error) {
       await conn.rollback();
       throw error;
     } finally {
       conn.release();
+    }
+
+    await audit(req, 'order_created', { orderId: localOrderId, serviceId, quantity, amount, aiDecision: ai.decision, risk: ai.risk_score });
+
+    try {
+      const submission = await submitOrderToSupplier({ serviceId, targetUrl, quantity });
+      await pool.query('UPDATE orders SET status="processing",provider_order_id=? WHERE id=?', [submission.remoteId, localOrderId]);
+      await pool.query(
+        'INSERT INTO supplier_order_events (order_id,supplier_id,event_type,remote_order_id,payload) VALUES (?,? ,"submitted",?,?)',
+        [localOrderId, submission.supplier.id, submission.remoteId, JSON.stringify(submission.raw || {})]
+      );
+      await audit(req, 'order_sent_to_supplier', { orderId: localOrderId, supplierId: submission.supplier.id, remoteOrderId: submission.remoteId });
+      return res.status(201).json({
+        id: localOrderId,
+        amount,
+        status: 'processing',
+        provider_order_id: submission.remoteId,
+        supplier: { id: submission.supplier.id, name: submission.supplier.name },
+        ai
+      });
+    } catch (supplierError) {
+      await refundOrderAfterSupplierFailure(localOrderId, supplierError.message);
+      await audit(req, 'order_supplier_failed_refunded', { orderId: localOrderId, error: supplierError.message });
+      return res.status(502).json({
+        error: 'O fornecedor não aceitou o pedido. O saldo foi devolvido automaticamente.',
+        order_id: localOrderId,
+        refunded: true,
+        detail: supplierError.message
+      });
     }
   } catch (error) {
     res.status(500).json({ error: 'Não foi possível registrar o pedido.' });
@@ -333,7 +398,8 @@ app.get('/api/admin/overview', authRequired, adminRequired, async (req, res) => 
   const [[payments]] = await pool.query("SELECT COUNT(*) total, SUM(status='approved') approved, SUM(status='failed') failed, COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) approved_value, COALESCE(SUM(CASE WHEN status='approved' AND created_at>=CURDATE() THEN amount ELSE 0 END),0) approved_today FROM payments");
   const [[wallet]] = await pool.query("SELECT COALESCE(SUM(CASE WHEN type='credit' THEN amount ELSE 0 END),0) credits, COALESCE(SUM(CASE WHEN type='debit' THEN amount ELSE 0 END),0) debits, COALESCE(SUM(CASE WHEN type='refund' THEN amount ELSE 0 END),0) refunds FROM wallet_transactions");
   const [[ai]] = await pool.query('SELECT COUNT(*) total, SUM(reviewed_at IS NULL) unreviewed FROM ai_decisions');
-  res.json({ users, orders, payments, wallet, ai, ai_configured: aiConfigured() });
+  const [[suppliers]] = await pool.query('SELECT COUNT(*) total,SUM(active=1) active FROM supplier_servers');
+  res.json({ users, orders, payments, wallet, ai, suppliers, ai_configured: await aiConfigured() });
 });
 
 app.get('/api/admin/orders', authRequired, adminRequired, async (req, res) => {
@@ -353,6 +419,10 @@ app.get('/api/admin/orders', authRequired, adminRequired, async (req, res) => {
   const sql = `SELECT o.id,o.target_url,o.quantity,o.amount,o.status,o.funds_refunded,o.provider_order_id,o.created_at,o.updated_at,u.id user_id,u.name user_name,u.email user_email,s.id service_id,s.name service,s.category FROM orders o JOIN users u ON u.id=o.user_id JOIN services s ON s.id=o.service_id ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY o.id DESC LIMIT 200`;
   const [rows] = await pool.query(sql, params);
   res.json(rows);
+});
+
+app.post('/api/admin/orders/sync-suppliers', authRequired, adminRequired, async (req, res) => {
+  res.json({ ok: true, ...(await syncOpenSupplierOrders(200)) });
 });
 
 app.get('/api/admin/users', authRequired, adminRequired, async (req, res) => {
@@ -387,7 +457,7 @@ app.get('/api/admin/payments', authRequired, adminRequired, async (req, res) => 
 });
 
 app.get('/api/admin/services', authRequired, adminRequired, async (req, res) => {
-  const [rows] = await pool.query('SELECT id,category,name,description,unit_label,min_qty,max_qty,price_per_unit,provider_code,active,created_at FROM services ORDER BY active DESC,category,name');
+  const [rows] = await pool.query(`SELECT s.id,s.category,s.name,s.description,s.unit_label,s.min_qty,s.max_qty,s.price_per_unit,s.provider_code,s.active,s.created_at,ssl.supplier_id,ssl.supplier_service_code,ssl.supplier_cost,ss.name supplier_name FROM services s LEFT JOIN service_supplier_links ssl ON ssl.service_id=s.id AND ssl.active=1 LEFT JOIN supplier_servers ss ON ss.id=ssl.supplier_id ORDER BY s.active DESC,s.category,s.name`);
   res.json(rows);
 });
 
@@ -399,13 +469,28 @@ app.post('/api/admin/services', authRequired, adminRequired, async (req, res) =>
   const minQty = Number(req.body.min_qty || 1);
   const maxQty = Number(req.body.max_qty || 1000);
   const price = Number(req.body.price_per_unit);
+  const providerCode = String(req.body.provider_code || '').trim();
+  const supplierId = Number(req.body.supplier_id || 0);
   if (!category || !name || !unitLabel || !Number.isFinite(price) || price <= 0 || minQty < 1 || maxQty < minQty) return res.status(400).json({ error: 'Dados do serviço inválidos.' });
-  const [result] = await pool.query(
-    'INSERT INTO services (category,name,description,unit_label,min_qty,max_qty,price_per_unit) VALUES (?,?,?,?,?,?,?)',
-    [category, name, description, unitLabel, minQty, maxQty, price]
-  );
-  await audit(req, 'service_created', { serviceId: result.insertId, category, name });
-  res.status(201).json({ id: result.insertId });
+  if ((providerCode && !supplierId) || (supplierId && !providerCode)) return res.status(400).json({ error: 'Para envio automático, informe servidor e código do serviço do fornecedor.' });
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [result] = await conn.query(
+      'INSERT INTO services (category,name,description,unit_label,min_qty,max_qty,price_per_unit,provider_code) VALUES (?,?,?,?,?,?,?,?)',
+      [category, name, description, unitLabel, minQty, maxQty, price, providerCode || null]
+    );
+    if (supplierId && providerCode) {
+      await conn.query('INSERT INTO service_supplier_links (service_id,supplier_id,supplier_service_code,active) VALUES (?,?,?,1)', [result.insertId, supplierId, providerCode]);
+    }
+    await conn.commit();
+    await audit(req, 'service_created', { serviceId: result.insertId, category, name, supplierId: supplierId || null, providerCode: providerCode || null });
+    res.status(201).json({ id: result.insertId });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: 'Não foi possível cadastrar o serviço.' });
+  } finally { conn.release(); }
 });
 
 app.patch('/api/admin/services/:id', authRequired, adminRequired, async (req, res) => {
@@ -421,14 +506,30 @@ app.patch('/api/admin/services/:id', authRequired, adminRequired, async (req, re
     min_qty: req.body.min_qty !== undefined ? Number(req.body.min_qty) : Number(current.min_qty),
     max_qty: req.body.max_qty !== undefined ? Number(req.body.max_qty) : Number(current.max_qty),
     price_per_unit: req.body.price_per_unit !== undefined ? Number(req.body.price_per_unit) : Number(current.price_per_unit),
-    active: req.body.active !== undefined ? (req.body.active ? 1 : 0) : Number(current.active)
+    active: req.body.active !== undefined ? (req.body.active ? 1 : 0) : Number(current.active),
+    provider_code: req.body.provider_code !== undefined ? String(req.body.provider_code || '').trim() : current.provider_code,
+    supplier_id: req.body.supplier_id !== undefined ? Number(req.body.supplier_id || 0) : null
   };
   if (!next.category || !next.name || !next.unit_label || !Number.isFinite(next.price_per_unit) || next.price_per_unit <= 0 || next.min_qty < 1 || next.max_qty < next.min_qty) {
     return res.status(400).json({ error: 'Dados do serviço inválidos.' });
   }
-  await pool.query('UPDATE services SET category=?,name=?,description=?,unit_label=?,min_qty=?,max_qty=?,price_per_unit=?,active=? WHERE id=?', [next.category, next.name, next.description, next.unit_label, next.min_qty, next.max_qty, next.price_per_unit, next.active, id]);
-  await audit(req, 'service_updated', { serviceId: id, active: next.active, price: next.price_per_unit });
-  res.json({ ok: true, id, ...next });
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('UPDATE services SET category=?,name=?,description=?,unit_label=?,min_qty=?,max_qty=?,price_per_unit=?,provider_code=?,active=? WHERE id=?', [next.category,next.name,next.description,next.unit_label,next.min_qty,next.max_qty,next.price_per_unit,next.provider_code||null,next.active,id]);
+    if (req.body.supplier_id !== undefined || req.body.provider_code !== undefined) {
+      await conn.query('DELETE FROM service_supplier_links WHERE service_id=?', [id]);
+      if (next.supplier_id && next.provider_code) {
+        await conn.query('INSERT INTO service_supplier_links (service_id,supplier_id,supplier_service_code,active) VALUES (?,?,?,1)', [id,next.supplier_id,next.provider_code]);
+      }
+    }
+    await conn.commit();
+    await audit(req, 'service_updated', { serviceId: id, active: next.active, price: next.price_per_unit, supplierId: next.supplier_id || null, providerCode: next.provider_code || null });
+    res.json({ ok: true, id, ...next });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: 'Não foi possível atualizar o serviço.' });
+  } finally { conn.release(); }
 });
 
 app.get('/api/admin/ai/brief', authRequired, adminRequired, async (req, res) => {
@@ -491,12 +592,15 @@ app.patch('/api/admin/orders/:id', authRequired, adminRequired, async (req, res)
   }
 });
 
+app.use('/api/admin', adminIntegrationsRouter);
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const port = Number(process.env.PORT || 3008);
 initDatabase()
   .then(() => {
     startAiScheduler();
+    startSupplierScheduler();
     app.listen(port, '127.0.0.1', () => console.log(`SMM SuperAmplitude online em 127.0.0.1:${port}`));
   })
   .catch(error => {
