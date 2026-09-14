@@ -7,7 +7,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const { pool, initDatabase } = require('./src/db');
 const { signUser, authRequired, adminRequired } = require('./src/auth');
-const { analyzeOrder, recommendServices, operationalBrief } = require('./src/ai');
+const { analyzeOrder, recommendServices, operationalBrief, startAiScheduler } = require('./src/ai');
 const {
   createMercadoPagoCheckout,
   createPayPalCheckout,
@@ -25,6 +25,25 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const emailOf = value => String(value || '').trim().toLowerCase();
 const asMoney = value => Math.round(Number(value) * 100) / 100;
+
+function rateLimit({ windowMs = 60000, max = 60 } = {}) {
+  const buckets = new Map();
+  return (req, res, next) => {
+    const key = req.ip || 'unknown';
+    const now = Date.now();
+    const item = buckets.get(key);
+    if (!item || now > item.resetAt) {
+      buckets.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    item.count += 1;
+    if (item.count > max) return res.status(429).json({ error: 'Muitas tentativas. Aguarde um pouco e tente novamente.' });
+    next();
+  };
+}
+
+app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));
+app.use('/api/ai', rateLimit({ windowMs: 60 * 1000, max: 20 }));
 
 async function audit(req, action, payload = {}) {
   try {
@@ -45,6 +64,10 @@ async function creditApprovedPayment(localPaymentId, externalId) {
     if (payment.status !== 'approved') {
       await conn.query('UPDATE payments SET status="approved", external_id=COALESCE(?,external_id) WHERE id=?', [externalId || null, payment.id]);
       await conn.query('UPDATE users SET balance=balance+? WHERE id=?', [payment.amount, payment.user_id]);
+      await conn.query(
+        'INSERT INTO wallet_transactions (user_id,type,amount,reference_type,reference_id,description) VALUES (?,"credit",?,"payment",?,?)',
+        [payment.user_id, payment.amount, payment.id, `Crédito confirmado via ${payment.gateway}`]
+      );
     }
     await conn.commit();
     return payment;
@@ -100,7 +123,7 @@ app.get('/api/me', authRequired, async (req, res) => {
 });
 
 app.get('/api/services', async (req, res) => {
-  const [rows] = await pool.query('SELECT id,category,name,description,unit,min_qty,max_qty,price_per_1000 FROM services WHERE active=1 ORDER BY category,name');
+  const [rows] = await pool.query('SELECT id,category,name,description,unit_label,min_qty,max_qty,price_per_unit FROM services WHERE active=1 ORDER BY category,name');
   res.json(rows);
 });
 
@@ -134,21 +157,62 @@ app.post('/api/orders', authRequired, async (req, res) => {
       return res.status(400).json({ error: `Quantidade deve ficar entre ${service.min_qty} e ${service.max_qty}.` });
     }
     if (!/^https?:\/\//i.test(targetUrl)) return res.status(400).json({ error: 'Informe uma URL válida.' });
-    const amount = asMoney((Number(service.price_per_1000) * quantity) / 1000);
-    const ai = await analyzeOrder({ userId: req.user.id, service: { id: service.id, name: service.name, category: service.category }, quantity, targetUrl, amount });
+
+    const amount = asMoney(Number(service.price_per_unit) * quantity);
+    const ai = await analyzeOrder({
+      userId: req.user.id,
+      service: { id: service.id, name: service.name, category: service.category, unit: service.unit_label },
+      quantity,
+      targetUrl,
+      amount
+    });
     if (ai.decision === 'reject') {
       await audit(req, 'order_rejected_by_policy', { serviceId, quantity, risk: ai.risk_score });
       return res.status(422).json({ error: 'Pedido bloqueado pela política operacional.', ai });
     }
-    const [result] = await pool.query(
-      'INSERT INTO orders (user_id,service_id,target_url,quantity,amount,status) VALUES (?,?,?,?,?,?)',
-      [req.user.id, serviceId, targetUrl, quantity, amount, 'pending']
-    );
-    await audit(req, 'order_created', { orderId: result.insertId, serviceId, quantity, amount, aiDecision: ai.decision });
-    res.status(201).json({ id: result.insertId, amount, status: 'pending', ai });
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [users] = await conn.query('SELECT balance,status FROM users WHERE id=? FOR UPDATE', [req.user.id]);
+      const user = users[0];
+      if (!user || user.status !== 'active') {
+        await conn.rollback();
+        return res.status(403).json({ error: 'Conta indisponível.' });
+      }
+      if (Number(user.balance) < amount) {
+        await conn.rollback();
+        return res.status(402).json({ error: `Saldo insuficiente. Necessário ${amount.toFixed(2)}.` });
+      }
+      const [result] = await conn.query(
+        'INSERT INTO orders (user_id,service_id,target_url,quantity,amount,status) VALUES (?,?,?,?,?,"pending")',
+        [req.user.id, serviceId, targetUrl, quantity, amount]
+      );
+      await conn.query('UPDATE users SET balance=balance-? WHERE id=?', [amount, req.user.id]);
+      await conn.query(
+        'INSERT INTO wallet_transactions (user_id,type,amount,reference_type,reference_id,description) VALUES (?,"debit",?,"order",?,?)',
+        [req.user.id, amount, result.insertId, `Pedido #${result.insertId}`]
+      );
+      await conn.commit();
+      await audit(req, 'order_created', { orderId: result.insertId, serviceId, quantity, amount, aiDecision: ai.decision });
+      return res.status(201).json({ id: result.insertId, amount, status: 'pending', ai });
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
+    }
   } catch (error) {
     res.status(500).json({ error: 'Não foi possível registrar o pedido.' });
   }
+});
+
+app.get('/api/wallet', authRequired, async (req, res) => {
+  const [rows] = await pool.query(
+    'SELECT id,type,amount,reference_type,reference_id,description,created_at FROM wallet_transactions WHERE user_id=? ORDER BY id DESC LIMIT 100',
+    [req.user.id]
+  );
+  res.json(rows);
 });
 
 app.get('/api/payments', authRequired, async (req, res) => {
@@ -157,13 +221,14 @@ app.get('/api/payments', authRequired, async (req, res) => {
 });
 
 app.post('/api/payments/checkout', authRequired, async (req, res) => {
+  let localId = null;
   try {
     const gateway = String(req.body.gateway || '');
     const amount = asMoney(req.body.amount);
     if (!['mercadopago', 'paypal'].includes(gateway)) return res.status(400).json({ error: 'Gateway inválido.' });
     if (!Number.isFinite(amount) || amount < 10 || amount > 50000) return res.status(400).json({ error: 'Valor permitido: R$ 10,00 a R$ 50.000,00.' });
     const [payment] = await pool.query('INSERT INTO payments (user_id,gateway,amount,status) VALUES (?,?,?,"created")', [req.user.id, gateway, amount]);
-    const localId = payment.insertId;
+    localId = payment.insertId;
     const description = `Crédito SMM SuperAmplitude #${localId}`;
     const checkout = gateway === 'mercadopago'
       ? await createMercadoPagoCheckout({ amount, description, email: req.user.email, externalReference: localId })
@@ -172,6 +237,7 @@ app.post('/api/payments/checkout', authRequired, async (req, res) => {
     await audit(req, 'payment_checkout_created', { paymentId: localId, gateway, amount });
     res.status(201).json({ payment_id: localId, gateway, amount, checkout_url: checkout.checkoutUrl });
   } catch (error) {
+    if (localId) await pool.query('UPDATE payments SET status="failed" WHERE id=? AND status="created"', [localId]).catch(() => {});
     res.status(502).json({ error: 'Não foi possível abrir o checkout do gateway.' });
   }
 });
@@ -205,7 +271,7 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
     if (remote.status === 'approved') {
       await creditApprovedPayment(localId, String(paymentId));
     } else {
-      const map = { pending: 'pending', in_process: 'pending', rejected: 'failed', cancelled: 'cancelled', refunded: 'refunded' };
+      const map = { pending: 'pending', in_process: 'pending', rejected: 'failed', cancelled: 'cancelled' };
       const status = map[remote.status];
       if (status) await pool.query('UPDATE payments SET status=?,external_id=? WHERE id=? AND status<>"approved"', [status, String(paymentId), localId]);
     }
@@ -251,12 +317,15 @@ app.post('/api/admin/services', authRequired, adminRequired, async (req, res) =>
   const category = String(req.body.category || '').trim();
   const name = String(req.body.name || '').trim();
   const description = String(req.body.description || '').trim();
-  const unit = String(req.body.unit || '1000').trim();
+  const unitLabel = String(req.body.unit_label || 'unidade').trim();
   const minQty = Number(req.body.min_qty || 1);
-  const maxQty = Number(req.body.max_qty || 100000);
-  const price = Number(req.body.price_per_1000);
-  if (!category || !name || !Number.isFinite(price) || price <= 0 || minQty < 1 || maxQty < minQty) return res.status(400).json({ error: 'Dados do serviço inválidos.' });
-  const [result] = await pool.query('INSERT INTO services (category,name,description,unit,min_qty,max_qty,price_per_1000) VALUES (?,?,?,?,?,?,?)', [category, name, description, unit, minQty, maxQty, price]);
+  const maxQty = Number(req.body.max_qty || 1000);
+  const price = Number(req.body.price_per_unit);
+  if (!category || !name || !unitLabel || !Number.isFinite(price) || price <= 0 || minQty < 1 || maxQty < minQty) return res.status(400).json({ error: 'Dados do serviço inválidos.' });
+  const [result] = await pool.query(
+    'INSERT INTO services (category,name,description,unit_label,min_qty,max_qty,price_per_unit) VALUES (?,?,?,?,?,?,?)',
+    [category, name, description, unitLabel, minQty, maxQty, price]
+  );
   await audit(req, 'service_created', { serviceId: result.insertId, category, name });
   res.status(201).json({ id: result.insertId });
 });
@@ -265,16 +334,48 @@ app.patch('/api/admin/orders/:id', authRequired, adminRequired, async (req, res)
   const allowed = ['pending', 'processing', 'completed', 'partial', 'cancelled', 'refunded'];
   const status = String(req.body.status || '');
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Status inválido.' });
-  await pool.query('UPDATE orders SET status=? WHERE id=?', [status, Number(req.params.id)]);
-  await audit(req, 'order_status_changed', { orderId: Number(req.params.id), status });
-  res.json({ ok: true });
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query('SELECT * FROM orders WHERE id=? FOR UPDATE', [Number(req.params.id)]);
+    if (!rows.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Pedido não encontrado.' });
+    }
+    const order = rows[0];
+    if (order.funds_refunded && !['cancelled', 'refunded'].includes(status)) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'Este pedido já teve os valores devolvidos e não pode ser reativado.' });
+    }
+    if (['cancelled', 'refunded'].includes(status) && !order.funds_refunded) {
+      await conn.query('UPDATE users SET balance=balance+? WHERE id=?', [order.amount, order.user_id]);
+      await conn.query(
+        'INSERT INTO wallet_transactions (user_id,type,amount,reference_type,reference_id,description) VALUES (?,"refund",?,"order",?,?)',
+        [order.user_id, order.amount, order.id, `Devolução do pedido #${order.id}`]
+      );
+      await conn.query('UPDATE orders SET status=?,funds_refunded=1 WHERE id=?', [status, order.id]);
+    } else {
+      await conn.query('UPDATE orders SET status=? WHERE id=?', [status, order.id]);
+    }
+    await conn.commit();
+    await audit(req, 'order_status_changed', { orderId: order.id, status });
+    res.json({ ok: true });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: 'Não foi possível atualizar o pedido.' });
+  } finally {
+    conn.release();
+  }
 });
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const port = Number(process.env.PORT || 3008);
 initDatabase()
-  .then(() => app.listen(port, '127.0.0.1', () => console.log(`SMM SuperAmplitude online em 127.0.0.1:${port}`)))
+  .then(() => {
+    startAiScheduler();
+    app.listen(port, '127.0.0.1', () => console.log(`SMM SuperAmplitude online em 127.0.0.1:${port}`));
+  })
   .catch(error => {
     console.error('Falha ao inicializar:', error);
     process.exit(1);
