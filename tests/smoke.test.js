@@ -65,7 +65,7 @@ test('supplier gateway supports catalog, balance, pricing, direct order and tele
   assert.match(supplier, /syncOpenSupplierOrders/);
 });
 
-test('client API exposes dashboard and supplier telemetry without exposing supplier secrets', () => {
+test('client API exposes dashboard and supplier telemetry', () => {
   const server = read('server.js');
   assert.equal(server.includes("app.get('/api/dashboard'"), true);
   assert.match(server, /last_7_days/);
@@ -116,12 +116,13 @@ test('client panel follows Matrix-style information architecture', () => {
   for (const id of ['dashboard','new-order','orders','funds','wallet','ai','orderForm','paymentForm','orderTabs','serviceDescription']) assert.equal(html.includes(`id="${id}"`), true, `${id} ausente no painel do cliente`);
   for (const label of ['Dashboard','Novo pedido','Pedidos','Adicionar saldo','Histórico']) assert.match(html, new RegExp(label));
   assert.match(html, /Fornecedor API/);
+  assert.match(html, /Enviar pedido ao fornecedor/);
   const js = read('public/panel/panel.js');
   assert.match(js, /\/api\/dashboard/);
   assert.match(js, /\/api\/orders/);
   assert.match(js, /start_counter/);
   assert.match(js, /remains/);
-  assert.match(js, /Enviar pedido ao fornecedor/);
+  assert.match(js, /Pedido enviado diretamente ao fornecedor/);
   const css = read('public/panel/panel.css');
   assert.match(css, /--line-dark/);
   assert.match(css, /status-tabs/);
