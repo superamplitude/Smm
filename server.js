@@ -188,6 +188,31 @@ app.get('/api/me', authRequired, async (req, res) => {
   res.json(rows[0]);
 });
 
+app.get('/api/dashboard', authRequired, async (req, res) => {
+  const [[account]] = await pool.query('SELECT id,name,email,role,balance,status,created_at FROM users WHERE id=? LIMIT 1', [req.user.id]);
+  if (!account) return res.status(404).json({ error: 'Usuário não encontrado.' });
+  const [[orders]] = await pool.query(
+    `SELECT COUNT(*) total,
+      SUM(status='pending') pending,
+      SUM(status='processing') processing,
+      SUM(status='completed') completed,
+      SUM(status='partial') partial,
+      SUM(status='cancelled') cancelled,
+      SUM(status='refunded') refunded
+     FROM orders WHERE user_id=?`,
+    [req.user.id]
+  );
+  const [[deposits]] = await pool.query(
+    `SELECT
+      COALESCE(SUM(CASE WHEN status='approved' AND created_at>=DATE_SUB(NOW(),INTERVAL 7 DAY) THEN amount ELSE 0 END),0) last_7_days,
+      COALESCE(SUM(CASE WHEN status='approved' AND YEAR(created_at)=YEAR(CURDATE()) THEN amount ELSE 0 END),0) year_total,
+      COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) total
+     FROM payments WHERE user_id=?`,
+    [req.user.id]
+  );
+  res.json({ account, orders, deposits });
+});
+
 app.get('/api/services', async (req, res) => {
   const [rows] = await pool.query('SELECT id,category,name,description,unit_label,min_qty,max_qty,price_per_unit FROM services WHERE active=1 ORDER BY category,name');
   res.json(rows);
@@ -205,7 +230,10 @@ app.post('/api/ai/recommend', authRequired, async (req, res) => {
 
 app.get('/api/orders', authRequired, async (req, res) => {
   const [rows] = await pool.query(
-    'SELECT o.id,o.target_url,o.quantity,o.amount,o.status,o.provider_order_id,o.created_at,s.name service,s.category FROM orders o JOIN services s ON s.id=o.service_id WHERE o.user_id=? ORDER BY o.id DESC LIMIT 100',
+    `SELECT o.id,o.target_url,o.quantity,o.amount,o.status,o.provider_order_id,o.start_counter,o.remains,o.provider_status,o.last_provider_sync_at,o.created_at,o.updated_at,
+      s.name service,s.category,s.unit_label
+     FROM orders o JOIN services s ON s.id=o.service_id
+     WHERE o.user_id=? ORDER BY o.id DESC LIMIT 200`,
     [req.user.id]
   );
   res.json(rows);
@@ -273,7 +301,11 @@ app.post('/api/orders', authRequired, async (req, res) => {
 
     try {
       const submission = await submitOrderToSupplier({ serviceId, targetUrl, quantity });
-      await pool.query('UPDATE orders SET status="processing",provider_order_id=? WHERE id=?', [submission.remoteId, localOrderId]);
+      const telemetry = submission.telemetry || {};
+      await pool.query(
+        'UPDATE orders SET status="processing",provider_order_id=?,start_counter=?,remains=?,provider_status=?,last_provider_sync_at=NOW() WHERE id=?',
+        [submission.remoteId, telemetry.start_counter ?? null, telemetry.remains ?? null, telemetry.provider_status ?? 'submitted', localOrderId]
+      );
       await pool.query(
         'INSERT INTO supplier_order_events (order_id,supplier_id,event_type,remote_order_id,payload) VALUES (?,? ,"submitted",?,?)',
         [localOrderId, submission.supplier.id, submission.remoteId, JSON.stringify(submission.raw || {})]
@@ -339,19 +371,19 @@ app.post('/api/payments/checkout', authRequired, async (req, res) => {
 
 app.get('/api/payments/paypal/return', async (req, res) => {
   const orderId = String(req.query.token || '').trim();
-  if (!orderId) return res.redirect('/?payment=failure');
+  if (!orderId) return res.redirect('/panel/?payment=failure');
   try {
     const [rows] = await pool.query('SELECT id FROM payments WHERE gateway="paypal" AND external_id=? LIMIT 1', [orderId]);
-    if (!rows.length) return res.redirect('/?payment=failure');
+    if (!rows.length) return res.redirect('/panel/?payment=failure');
     const capture = await capturePayPalOrder(orderId);
     if (capture.status === 'COMPLETED' || capture.name === 'ORDER_ALREADY_CAPTURED') {
       await creditApprovedPayment(rows[0].id, orderId);
-      return res.redirect('/?payment=success');
+      return res.redirect('/panel/?payment=success');
     }
-    return res.redirect('/?payment=pending');
+    return res.redirect('/panel/?payment=pending');
   } catch (error) {
     console.error('PayPal return:', error.message);
-    return res.redirect('/?payment=failure');
+    return res.redirect('/panel/?payment=failure');
   }
 });
 
@@ -416,7 +448,7 @@ app.get('/api/admin/orders', authRequired, adminRequired, async (req, res) => {
     where.push('(u.name LIKE ? OR u.email LIKE ? OR s.name LIKE ? OR CAST(o.id AS CHAR)=?)');
     params.push(`%${q}%`, `%${q}%`, `%${q}%`, q);
   }
-  const sql = `SELECT o.id,o.target_url,o.quantity,o.amount,o.status,o.funds_refunded,o.provider_order_id,o.created_at,o.updated_at,u.id user_id,u.name user_name,u.email user_email,s.id service_id,s.name service,s.category FROM orders o JOIN users u ON u.id=o.user_id JOIN services s ON s.id=o.service_id ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY o.id DESC LIMIT 200`;
+  const sql = `SELECT o.id,o.target_url,o.quantity,o.amount,o.status,o.funds_refunded,o.provider_order_id,o.start_counter,o.remains,o.provider_status,o.last_provider_sync_at,o.created_at,o.updated_at,u.id user_id,u.name user_name,u.email user_email,s.id service_id,s.name service,s.category FROM orders o JOIN users u ON u.id=o.user_id JOIN services s ON s.id=o.service_id ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY o.id DESC LIMIT 200`;
   const [rows] = await pool.query(sql, params);
   res.json(rows);
 });
