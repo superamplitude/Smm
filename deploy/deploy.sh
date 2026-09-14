@@ -16,6 +16,7 @@ command -v node >/dev/null || fail "Node.js não instalado"
 command -v npm >/dev/null || fail "npm não instalado"
 command -v rsync >/dev/null || fail "rsync não instalado"
 command -v curl >/dev/null || fail "curl não instalado"
+[[ -f "$APP_DIR/.env" ]] || fail "Arquivo $APP_DIR/.env não existe. Execute deploy/bootstrap-vps.sh primeiro."
 
 log "Validando código"
 node --check "$SOURCE_DIR/server.js"
@@ -33,12 +34,6 @@ rsync -rlptD --delete \
   --exclude='.env' \
   "$SOURCE_DIR/" "$RELEASE_DIR/"
 
-if [[ -f "$APP_DIR/.env" ]]; then
-  cp "$APP_DIR/.env" "$RELEASE_DIR/.env"
-else
-  fail "Arquivo $APP_DIR/.env não existe. Execute deploy/bootstrap-vps.sh primeiro."
-fi
-
 log "Instalando dependências de produção"
 cd "$RELEASE_DIR"
 npm install --omit=dev --no-audit --no-fund
@@ -47,12 +42,11 @@ node --check server.js
 if [[ -d "$APP_DIR" ]]; then
   BACKUP="$BACKUP_ROOT/site_${STAMP}"
   mkdir -p "$BACKUP"
-  rsync -rlptD --exclude='node_modules/' "$APP_DIR/" "$BACKUP/"
+  rsync -rlptD --exclude='node_modules/' --exclude='.env' "$APP_DIR/" "$BACKUP/"
 fi
 
 log "Publicando release"
 rsync -rlptD --delete --exclude='.env' "$RELEASE_DIR/" "$APP_DIR/"
-cp "$RELEASE_DIR/.env" "$APP_DIR/.env"
 rm -rf "$RELEASE_DIR"
 
 log "Reiniciando serviço"
