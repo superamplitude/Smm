@@ -24,6 +24,15 @@ async function createMercadoPagoCheckout({ amount, description, email, externalR
   return { externalId: data.id, checkoutUrl: data.init_point || data.sandbox_init_point };
 }
 
+async function fetchMercadoPagoPayment(paymentId) {
+  if (!process.env.MERCADOPAGO_ACCESS_TOKEN) throw new Error('Mercado Pago não configurado');
+  const response = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, {
+    headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` }
+  });
+  if (!response.ok) throw new Error(`Mercado Pago payment HTTP ${response.status}`);
+  return response.json();
+}
+
 async function paypalAccessToken() {
   const id = process.env.PAYPAL_CLIENT_ID;
   const secret = process.env.PAYPAL_CLIENT_SECRET;
@@ -70,4 +79,30 @@ async function createPayPalCheckout({ amount, description, externalReference }) 
   return { externalId: data.id, checkoutUrl: approval?.href || null };
 }
 
-module.exports = { createMercadoPagoCheckout, createPayPalCheckout };
+async function verifyPayPalWebhook(headers, event) {
+  if (!process.env.PAYPAL_WEBHOOK_ID) throw new Error('PAYPAL_WEBHOOK_ID não configurado');
+  const { base, token } = await paypalAccessToken();
+  const response = await fetch(`${base}/v1/notifications/verify-webhook-signature`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      auth_algo: headers['paypal-auth-algo'],
+      cert_url: headers['paypal-cert-url'],
+      transmission_id: headers['paypal-transmission-id'],
+      transmission_sig: headers['paypal-transmission-sig'],
+      transmission_time: headers['paypal-transmission-time'],
+      webhook_id: process.env.PAYPAL_WEBHOOK_ID,
+      webhook_event: event
+    })
+  });
+  if (!response.ok) throw new Error(`PayPal webhook verification HTTP ${response.status}`);
+  const data = await response.json();
+  return data.verification_status === 'SUCCESS';
+}
+
+module.exports = {
+  createMercadoPagoCheckout,
+  createPayPalCheckout,
+  fetchMercadoPagoPayment,
+  verifyPayPalWebhook
+};
