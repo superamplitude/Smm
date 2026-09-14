@@ -3,17 +3,19 @@ name: Deploy SMM SuperAmplitude
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: smm-production
+  group: smm-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Production deploy
+  validate:
+    name: Validate source
     runs-on: [self-hosted, smm, production]
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -24,7 +26,18 @@ jobs:
           npm --version
           node --check server.js
           node --check public/app.js
+          node --check src/ai.js
           npm test
+
+  deploy:
+    name: Production deploy
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: [self-hosted, smm, production]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
 
       - name: Deploy locally on VPS
         run: |
