@@ -115,8 +115,14 @@ CREATE TABLE IF NOT EXISTS orders (
   status ENUM('pending','processing','completed','partial','cancelled','refunded') NOT NULL DEFAULT 'pending',
   funds_refunded TINYINT(1) NOT NULL DEFAULT 0,
   provider_order_id VARCHAR(190) NULL,
+  start_counter BIGINT NULL,
+  remains BIGINT NULL,
+  provider_status VARCHAR(80) NULL,
+  last_provider_sync_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_orders_user_status (user_id,status),
+  INDEX idx_orders_provider (provider_order_id,status),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT fk_orders_service FOREIGN KEY (service_id) REFERENCES services(id)
 );
