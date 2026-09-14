@@ -36,7 +36,7 @@
         <div class="metric-grid">
           <div><small>Risco</small><strong>Monitorado</strong></div>
           <div><small>Pedidos</small><strong>Triagem IA</strong></div>
-          <div><small>Estratégia</small><strong>Personalizada</strong></div>
+          <div><small>Estratégia</small><strong>Catálogo real</strong></div>
           <div><small>Financeiro</small><strong>Protegido</strong></div>
         </div>
         <div class="ai-note">A IA recomenda e classifica. Pagamentos, reembolsos, saldo e bloqueios seguem regras determinísticas e controle administrativo.</div>
@@ -53,7 +53,7 @@
         <div>
           <span class="eyebrow">ASSISTENTE ESTRATÉGICO</span>
           <h2>Descreva seu objetivo. A IA monta o caminho.</h2>
-          <p>Informe rede, orçamento e meta. O sistema cruza seu objetivo com o catálogo e retorna uma recomendação operacional.</p>
+          <p>Informe rede, orçamento e meta. O sistema cruza seu objetivo com o catálogo ativo e retorna somente serviços que realmente existem na plataforma.</p>
         </div>
         <form id="aiForm" class="panel form-grid">
           <label>Rede social<input name="network" placeholder="Instagram, Facebook, TikTok…" required></label>
@@ -95,10 +95,55 @@
         </div>
         <div class="panel table-panel"><div class="section-head"><h3>Meus pedidos</h3><button id="refreshOrders" class="btn btn-ghost btn-small">Atualizar</button></div><div id="ordersTable"></div></div>
         <div class="panel table-panel"><div class="section-head"><h3>Extrato da carteira</h3><button id="refreshWallet" class="btn btn-ghost btn-small">Atualizar</button></div><div id="walletTable"></div></div>
+
         <section id="adminPanel" class="admin hidden">
-          <div class="section-head"><div><span class="eyebrow">ADMIN</span><h2>Centro de comando da IA</h2></div><button id="loadAiBrief" class="btn btn-small">Gerar briefing</button></div>
-          <div id="aiBrief" class="panel"><p>A IA operacional pode resumir saúde, alertas e ações recomendadas.</p></div>
-          <form id="serviceForm" class="panel form-grid">
+          <div class="admin-titlebar">
+            <div><span class="eyebrow">SUPER ADMIN</span><h2>Centro de comando operacional</h2><p>Pedidos, clientes, pagamentos, serviços, auditoria e decisões da IA em um único painel.</p></div>
+            <div class="admin-actions"><button id="loadAiBrief" class="btn btn-ghost btn-small">Briefing IA</button><button id="refreshAdmin" class="btn btn-small">Atualizar tudo</button></div>
+          </div>
+
+          <div class="admin-stat-grid">
+            <div class="stat"><small>Clientes</small><strong id="adminUsers">—</strong><span id="adminUsersMeta">—</span></div>
+            <div class="stat"><small>Pedidos</small><strong id="adminOrders">—</strong><span id="adminOrdersMeta">—</span></div>
+            <div class="stat"><small>Receita confirmada</small><strong id="adminRevenue">—</strong><span id="adminRevenueMeta">—</span></div>
+            <div class="stat"><small>IA</small><strong id="adminAi">—</strong><span id="adminAiMeta">—</span></div>
+          </div>
+
+          <div id="aiBrief" class="panel ai-brief"><p>A IA operacional pode resumir saúde, alertas e ações recomendadas.</p></div>
+
+          <div class="admin-grid">
+            <section class="panel admin-card admin-card-wide">
+              <div class="section-head"><div><h3>Fila de pedidos</h3><p>Status operacional e devolução automática quando cancelado ou reembolsado.</p></div><span class="badge">até 200</span></div>
+              <div id="adminOrdersTable" class="table-scroll"><div class="empty">Carregando pedidos…</div></div>
+            </section>
+
+            <section class="panel admin-card">
+              <div class="section-head"><div><h3>Clientes</h3><p>Bloqueio e reativação sob controle humano.</p></div></div>
+              <div id="adminUsersTable" class="table-scroll"><div class="empty">Carregando clientes…</div></div>
+            </section>
+
+            <section class="panel admin-card">
+              <div class="section-head"><div><h3>Pagamentos</h3><p>Histórico dos gateways e estados de confirmação.</p></div></div>
+              <div id="adminPaymentsTable" class="table-scroll"><div class="empty">Carregando pagamentos…</div></div>
+            </section>
+
+            <section class="panel admin-card">
+              <div class="section-head"><div><h3>Decisões da IA</h3><p>Rastreabilidade e revisão administrativa.</p></div></div>
+              <div id="adminAiTable" class="table-scroll"><div class="empty">Carregando decisões…</div></div>
+            </section>
+
+            <section class="panel admin-card">
+              <div class="section-head"><div><h3>Serviços</h3><p>Catálogo publicado e disponibilidade.</p></div></div>
+              <div id="adminServicesTable" class="table-scroll"><div class="empty">Carregando serviços…</div></div>
+            </section>
+
+            <section class="panel admin-card admin-card-wide">
+              <div class="section-head"><div><h3>Auditoria</h3><p>Registro das ações sensíveis da plataforma.</p></div></div>
+              <div id="adminAuditTable" class="table-scroll"><div class="empty">Carregando auditoria…</div></div>
+            </section>
+          </div>
+
+          <form id="serviceForm" class="panel form-grid service-form">
             <h3 class="full">Cadastrar serviço</h3>
             <label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label>
             <label class="full">Descrição<textarea name="description" rows="3"></textarea></label>

@@ -25,12 +25,21 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const emailOf = value => String(value || '').trim().toLowerCase();
 const asMoney = value => Math.round(Number(value) * 100) / 100;
+const aiConfigured = () => Boolean(
+  String(process.env.AI_ENABLED || 'true').toLowerCase() === 'true' &&
+  process.env.AI_API_BASE_URL && process.env.AI_API_KEY && process.env.AI_MODEL
+);
 
 function rateLimit({ windowMs = 60000, max = 60 } = {}) {
   const buckets = new Map();
   return (req, res, next) => {
     const key = req.ip || 'unknown';
     const now = Date.now();
+    if (buckets.size > 5000) {
+      for (const [bucketKey, item] of buckets.entries()) {
+        if (now > item.resetAt) buckets.delete(bucketKey);
+      }
+    }
     const item = buckets.get(key);
     if (!item || now > item.resetAt) {
       buckets.set(key, { count: 1, resetAt: now + windowMs });
@@ -80,7 +89,28 @@ async function creditApprovedPayment(localPaymentId, externalId) {
 }
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, service: 'superamplitude-smm', ai: process.env.AI_ENABLED !== 'false', time: new Date().toISOString() });
+  res.json({
+    ok: true,
+    service: 'superamplitude-smm',
+    ai_enabled: String(process.env.AI_ENABLED || 'true').toLowerCase() === 'true',
+    ai_configured: aiConfigured(),
+    time: new Date().toISOString()
+  });
+});
+
+app.get('/ready', async (req, res) => {
+  try {
+    await pool.query('SELECT 1 AS ok');
+    res.json({
+      ok: true,
+      service: 'superamplitude-smm',
+      database: 'ready',
+      ai: aiConfigured() ? 'configured' : 'fallback',
+      time: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(503).json({ ok: false, service: 'superamplitude-smm', database: 'unavailable' });
+  }
 });
 
 app.post('/api/auth/register', async (req, res) => {
@@ -194,7 +224,7 @@ app.post('/api/orders', authRequired, async (req, res) => {
         [req.user.id, amount, result.insertId, `Pedido #${result.insertId}`]
       );
       await conn.commit();
-      await audit(req, 'order_created', { orderId: result.insertId, serviceId, quantity, amount, aiDecision: ai.decision });
+      await audit(req, 'order_created', { orderId: result.insertId, serviceId, quantity, amount, aiDecision: ai.decision, risk: ai.risk_score });
       return res.status(201).json({ id: result.insertId, amount, status: 'pending', ai });
     } catch (error) {
       await conn.rollback();
@@ -298,18 +328,66 @@ app.post('/api/webhooks/paypal', async (req, res) => {
 });
 
 app.get('/api/admin/overview', authRequired, adminRequired, async (req, res) => {
-  const [[users]] = await pool.query('SELECT COUNT(*) total, COALESCE(SUM(balance),0) balances FROM users');
-  const [[orders]] = await pool.query("SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='processing') processing, SUM(status='completed') completed FROM orders");
-  const [[payments]] = await pool.query("SELECT COUNT(*) total, COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) approved_value FROM payments");
-  res.json({ users, orders, payments });
+  const [[users]] = await pool.query("SELECT COUNT(*) total, SUM(status='active') active, SUM(status='blocked') blocked, COALESCE(SUM(balance),0) balances FROM users");
+  const [[orders]] = await pool.query("SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='processing') processing, SUM(status='completed') completed, SUM(status='cancelled') cancelled, SUM(status='refunded') refunded, SUM(created_at>=CURDATE()) today FROM orders");
+  const [[payments]] = await pool.query("SELECT COUNT(*) total, SUM(status='approved') approved, SUM(status='failed') failed, COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) approved_value, COALESCE(SUM(CASE WHEN status='approved' AND created_at>=CURDATE() THEN amount ELSE 0 END),0) approved_today FROM payments");
+  const [[wallet]] = await pool.query("SELECT COALESCE(SUM(CASE WHEN type='credit' THEN amount ELSE 0 END),0) credits, COALESCE(SUM(CASE WHEN type='debit' THEN amount ELSE 0 END),0) debits, COALESCE(SUM(CASE WHEN type='refund' THEN amount ELSE 0 END),0) refunds FROM wallet_transactions");
+  const [[ai]] = await pool.query('SELECT COUNT(*) total, SUM(reviewed_at IS NULL) unreviewed FROM ai_decisions');
+  res.json({ users, orders, payments, wallet, ai, ai_configured: aiConfigured() });
 });
 
-app.get('/api/admin/ai/brief', authRequired, adminRequired, async (req, res) => {
-  res.json(await operationalBrief());
+app.get('/api/admin/orders', authRequired, adminRequired, async (req, res) => {
+  const status = String(req.query.status || '').trim();
+  const q = String(req.query.q || '').trim().slice(0, 120);
+  const allowed = ['pending', 'processing', 'completed', 'partial', 'cancelled', 'refunded'];
+  const where = [];
+  const params = [];
+  if (status && allowed.includes(status)) {
+    where.push('o.status=?');
+    params.push(status);
+  }
+  if (q) {
+    where.push('(u.name LIKE ? OR u.email LIKE ? OR s.name LIKE ? OR CAST(o.id AS CHAR)=?)');
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`, q);
+  }
+  const sql = `SELECT o.id,o.target_url,o.quantity,o.amount,o.status,o.funds_refunded,o.provider_order_id,o.created_at,o.updated_at,u.id user_id,u.name user_name,u.email user_email,s.id service_id,s.name service,s.category FROM orders o JOIN users u ON u.id=o.user_id JOIN services s ON s.id=o.service_id ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY o.id DESC LIMIT 200`;
+  const [rows] = await pool.query(sql, params);
+  res.json(rows);
 });
 
-app.get('/api/admin/ai/decisions', authRequired, adminRequired, async (req, res) => {
-  const [rows] = await pool.query('SELECT id,user_id,decision_type,status,output_json,reviewed_by,reviewed_at,created_at FROM ai_decisions ORDER BY id DESC LIMIT 100');
+app.get('/api/admin/users', authRequired, adminRequired, async (req, res) => {
+  const q = String(req.query.q || '').trim().slice(0, 120);
+  const params = [];
+  let where = '';
+  if (q) {
+    where = 'WHERE u.name LIKE ? OR u.email LIKE ? OR CAST(u.id AS CHAR)=?';
+    params.push(`%${q}%`, `%${q}%`, q);
+  }
+  const [rows] = await pool.query(
+    `SELECT u.id,u.name,u.email,u.role,u.balance,u.status,u.created_at,COUNT(DISTINCT o.id) orders_count,COUNT(DISTINCT p.id) payments_count FROM users u LEFT JOIN orders o ON o.user_id=u.id LEFT JOIN payments p ON p.user_id=u.id ${where} GROUP BY u.id ORDER BY u.id DESC LIMIT 200`,
+    params
+  );
+  res.json(rows);
+});
+
+app.patch('/api/admin/users/:id', authRequired, adminRequired, async (req, res) => {
+  const id = Number(req.params.id);
+  const status = String(req.body.status || '');
+  if (!Number.isInteger(id) || id < 1 || !['active', 'blocked'].includes(status)) return res.status(400).json({ error: 'Dados inválidos.' });
+  if (id === Number(req.user.id) && status === 'blocked') return res.status(409).json({ error: 'Você não pode bloquear sua própria conta administrativa.' });
+  const [result] = await pool.query('UPDATE users SET status=? WHERE id=?', [status, id]);
+  if (!result.affectedRows) return res.status(404).json({ error: 'Usuário não encontrado.' });
+  await audit(req, 'user_status_changed', { userId: id, status });
+  res.json({ ok: true, id, status });
+});
+
+app.get('/api/admin/payments', authRequired, adminRequired, async (req, res) => {
+  const [rows] = await pool.query('SELECT p.id,p.gateway,p.external_id,p.amount,p.currency,p.status,p.created_at,p.updated_at,u.id user_id,u.name user_name,u.email user_email FROM payments p JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 200');
+  res.json(rows);
+});
+
+app.get('/api/admin/services', authRequired, adminRequired, async (req, res) => {
+  const [rows] = await pool.query('SELECT id,category,name,description,unit_label,min_qty,max_qty,price_per_unit,provider_code,active,created_at FROM services ORDER BY active DESC,category,name');
   res.json(rows);
 });
 
@@ -328,6 +406,51 @@ app.post('/api/admin/services', authRequired, adminRequired, async (req, res) =>
   );
   await audit(req, 'service_created', { serviceId: result.insertId, category, name });
   res.status(201).json({ id: result.insertId });
+});
+
+app.patch('/api/admin/services/:id', authRequired, adminRequired, async (req, res) => {
+  const id = Number(req.params.id);
+  const [rows] = await pool.query('SELECT * FROM services WHERE id=? LIMIT 1', [id]);
+  if (!rows.length) return res.status(404).json({ error: 'Serviço não encontrado.' });
+  const current = rows[0];
+  const next = {
+    category: req.body.category !== undefined ? String(req.body.category).trim() : current.category,
+    name: req.body.name !== undefined ? String(req.body.name).trim() : current.name,
+    description: req.body.description !== undefined ? String(req.body.description).trim() : current.description,
+    unit_label: req.body.unit_label !== undefined ? String(req.body.unit_label).trim() : current.unit_label,
+    min_qty: req.body.min_qty !== undefined ? Number(req.body.min_qty) : Number(current.min_qty),
+    max_qty: req.body.max_qty !== undefined ? Number(req.body.max_qty) : Number(current.max_qty),
+    price_per_unit: req.body.price_per_unit !== undefined ? Number(req.body.price_per_unit) : Number(current.price_per_unit),
+    active: req.body.active !== undefined ? (req.body.active ? 1 : 0) : Number(current.active)
+  };
+  if (!next.category || !next.name || !next.unit_label || !Number.isFinite(next.price_per_unit) || next.price_per_unit <= 0 || next.min_qty < 1 || next.max_qty < next.min_qty) {
+    return res.status(400).json({ error: 'Dados do serviço inválidos.' });
+  }
+  await pool.query('UPDATE services SET category=?,name=?,description=?,unit_label=?,min_qty=?,max_qty=?,price_per_unit=?,active=? WHERE id=?', [next.category, next.name, next.description, next.unit_label, next.min_qty, next.max_qty, next.price_per_unit, next.active, id]);
+  await audit(req, 'service_updated', { serviceId: id, active: next.active, price: next.price_per_unit });
+  res.json({ ok: true, id, ...next });
+});
+
+app.get('/api/admin/ai/brief', authRequired, adminRequired, async (req, res) => {
+  res.json(await operationalBrief());
+});
+
+app.get('/api/admin/ai/decisions', authRequired, adminRequired, async (req, res) => {
+  const [rows] = await pool.query('SELECT id,user_id,decision_type,status,input_json,output_json,reviewed_by,reviewed_at,created_at FROM ai_decisions ORDER BY id DESC LIMIT 200');
+  res.json(rows);
+});
+
+app.patch('/api/admin/ai/decisions/:id/review', authRequired, adminRequired, async (req, res) => {
+  const id = Number(req.params.id);
+  const [result] = await pool.query('UPDATE ai_decisions SET reviewed_by=?,reviewed_at=NOW() WHERE id=?', [req.user.id, id]);
+  if (!result.affectedRows) return res.status(404).json({ error: 'Decisão de IA não encontrada.' });
+  await audit(req, 'ai_decision_reviewed', { decisionId: id });
+  res.json({ ok: true, id });
+});
+
+app.get('/api/admin/audit', authRequired, adminRequired, async (req, res) => {
+  const [rows] = await pool.query('SELECT a.id,a.action,a.payload,a.ip,a.created_at,u.name user_name,u.email user_email FROM audit_logs a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 200');
+  res.json(rows);
 });
 
 app.patch('/api/admin/orders/:id', authRequired, adminRequired, async (req, res) => {
@@ -359,7 +482,7 @@ app.patch('/api/admin/orders/:id', authRequired, adminRequired, async (req, res)
     }
     await conn.commit();
     await audit(req, 'order_status_changed', { orderId: order.id, status });
-    res.json({ ok: true });
+    res.json({ ok: true, id: order.id, status });
   } catch (error) {
     await conn.rollback();
     res.status(500).json({ error: 'Não foi possível atualizar o pedido.' });
