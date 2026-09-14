@@ -7,12 +7,12 @@ on:
 
 concurrency:
   group: smm-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
     name: Production deploy
-    runs-on: self-hosted
+    runs-on: [self-hosted, smm, production]
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -30,3 +30,8 @@ jobs:
         run: |
           chmod +x deploy/deploy.sh
           deploy/deploy.sh
+
+      - name: Verify production health
+        run: |
+          curl -fsS http://127.0.0.1:3008/health
+          curl -fsSI https://smm.superamplitude.com >/dev/null
