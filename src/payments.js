@@ -68,8 +68,9 @@ async function createPayPalCheckout({ amount, description, externalReference }) 
         amount: { currency_code: 'BRL', value: Number(amount).toFixed(2) }
       }],
       application_context: {
-        return_url: `${process.env.APP_URL}/?payment=success`,
-        cancel_url: `${process.env.APP_URL}/?payment=cancelled`
+        return_url: `${process.env.APP_URL}/api/payments/paypal/return`,
+        cancel_url: `${process.env.APP_URL}/?payment=cancelled`,
+        user_action: 'PAY_NOW'
       }
     })
   });
@@ -77,6 +78,22 @@ async function createPayPalCheckout({ amount, description, externalReference }) 
   const data = await response.json();
   const approval = (data.links || []).find(link => link.rel === 'approve');
   return { externalId: data.id, checkoutUrl: approval?.href || null };
+}
+
+async function capturePayPalOrder(orderId) {
+  const { base, token } = await paypalAccessToken();
+  const response = await fetch(`${base}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'PayPal-Request-Id': `smm-capture-${orderId}`
+    },
+    body: '{}'
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && data?.name !== 'ORDER_ALREADY_CAPTURED') throw new Error(`PayPal capture HTTP ${response.status}`);
+  return data;
 }
 
 async function verifyPayPalWebhook(headers, event) {
@@ -103,6 +120,7 @@ async function verifyPayPalWebhook(headers, event) {
 module.exports = {
   createMercadoPagoCheckout,
   createPayPalCheckout,
+  capturePayPalOrder,
   fetchMercadoPagoPayment,
   verifyPayPalWebhook
 };
