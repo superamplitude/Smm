@@ -3,135 +3,162 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#111827">
+  <meta name="theme-color" content="#ffffff">
   <title>Super ADM — SMM SuperAmplitude</title>
   <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
     <form id="adminLoginForm" class="login-card">
-      <div class="brand-block"><span class="logo">S</span><div><strong>SMM SuperAmplitude</strong><small>Super Administração</small></div></div>
-      <h1>Acesso administrativo</h1>
-      <p>Entre com a conta de administrador.</p>
+      <a class="brand brand-login" href="/"><span class="brand-mark">S</span><span><strong>SMM SuperAmplitude</strong><small>Super Administração</small></span></a>
+      <div class="login-copy"><span class="eyebrow">ACESSO RESTRITO</span><h1>Entrar no painel</h1><p>Use sua conta administrativa para acessar fornecedores, serviços, pedidos, pagamentos e integrações.</p></div>
       <label>E-mail<input name="email" type="email" autocomplete="username" required></label>
       <label>Senha<input name="password" type="password" autocomplete="current-password" minlength="10" required></label>
-      <button class="primary" type="submit">Entrar no Super ADM</button>
+      <button class="btn btn-primary btn-block" type="submit">Entrar no Super ADM</button>
       <div id="loginMessage" class="message hidden"></div>
-      <a class="back-link" href="/">← Voltar ao portal</a>
+      <a class="back-link" href="/">← Voltar ao portal público</a>
     </form>
   </div>
 
-  <div id="adminApp" class="admin-app hidden">
-    <aside class="sidebar">
-      <a class="brand-block brand-sidebar" href="#overview"><span class="logo">S</span><div><strong>SMM</strong><small>SuperAmplitude</small></div></a>
-      <div class="sidebar-label">SUPER ADMIN</div>
-      <nav>
-        <a class="nav-item active" href="#overview"><span>▦</span>Visão geral</a>
-        <a class="nav-item" href="#suppliers"><span>⌁</span>Servidores</a>
-        <a class="nav-item" href="#ais"><span>✦</span>IAs</a>
-        <a class="nav-item" href="#catalog-ai"><span>▤</span>Catálogo IA</a>
-        <a class="nav-item" href="#services"><span>◫</span>Serviços</a>
-        <a class="nav-item" href="#orders"><span>◎</span>Pedidos</a>
-        <a class="nav-item" href="#clients"><span>◉</span>Clientes</a>
-        <a class="nav-item" href="#payments"><span>◇</span>Pagamentos</a>
-        <a class="nav-item" href="#audit"><span>☷</span>Auditoria</a>
+  <div id="adminApp" class="admin-shell hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand-wrap">
+        <a class="brand" href="#overview"><span class="brand-mark">S</span><span><strong>SMM</strong><small>SuperAmplitude</small></span></a>
+        <button id="closeSidebar" class="icon-btn sidebar-close" type="button" aria-label="Fechar menu">×</button>
+      </div>
+
+      <nav class="side-nav">
+        <div class="nav-group"><span class="nav-heading">PAINEL</span>
+          <a class="nav-item active" href="#overview" data-title="Dashboard"><span class="nav-icon">▦</span><span>Dashboard</span></a>
+        </div>
+
+        <div class="nav-group"><span class="nav-heading">CATÁLOGO & API</span>
+          <a class="nav-item" href="#suppliers" data-title="API Providers"><span class="nav-icon">⌁</span><span>API Providers</span></a>
+          <a class="nav-item" href="#catalog-ai" data-title="Importar Serviços"><span class="nav-icon">⇩</span><span>Importar Serviços</span></a>
+          <a class="nav-item" href="#services" data-title="Serviços"><span class="nav-icon">▤</span><span>Serviços</span></a>
+          <a class="nav-item" href="#ais" data-title="Integrações de IA"><span class="nav-icon">✦</span><span>Integrações de IA</span></a>
+        </div>
+
+        <div class="nav-group"><span class="nav-heading">OPERAÇÃO</span>
+          <a class="nav-item" href="#orders" data-title="Pedidos"><span class="nav-icon">◎</span><span>Pedidos</span></a>
+          <a class="nav-item" href="#clients" data-title="Clientes"><span class="nav-icon">◉</span><span>Clientes</span></a>
+          <a class="nav-item" href="#payments" data-title="Pagamentos"><span class="nav-icon">◇</span><span>Pagamentos</span></a>
+        </div>
+
+        <div class="nav-group"><span class="nav-heading">SISTEMA</span>
+          <a class="nav-item" href="#ai-decisions" data-title="Decisões da IA"><span class="nav-icon">◈</span><span>Decisões da IA</span></a>
+          <a class="nav-item" href="#audit" data-title="Auditoria"><span class="nav-icon">☷</span><span>Auditoria</span></a>
+        </div>
       </nav>
-      <div class="sidebar-foot"><a class="side-link" href="/">Portal público</a><button id="logoutBtn" class="side-link danger">Sair</button></div>
+
+      <div class="sidebar-footer">
+        <a class="sidebar-action" href="/">↗ Portal público</a>
+        <button id="logoutBtn" class="sidebar-action danger" type="button">Sair</button>
+      </div>
     </aside>
 
-    <main class="workspace">
-      <header class="admin-topbar">
-        <div><span class="kicker">SUPER ADMIN</span><h1>Centro de comando</h1></div>
-        <div class="top-actions"><span id="systemStatus" class="system-status">● verificando</span><button id="refreshAll" class="secondary">Atualizar tudo</button><div class="admin-user"><strong id="adminName">Administrador</strong><small id="adminEmail">—</small></div></div>
+    <div class="main-wrap">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="openSidebar" class="icon-btn menu-btn" type="button" aria-label="Abrir menu">☰</button>
+          <div class="crumbs"><span>Super Admin</span><b>/</b><strong id="currentPageTitle">Dashboard</strong></div>
+        </div>
+        <div class="topbar-right">
+          <span id="systemStatus" class="status-chip">● verificando</span>
+          <button id="refreshAll" class="btn btn-white btn-sm" type="button">↻ Atualizar</button>
+          <div class="admin-user"><span class="avatar">A</span><div><strong id="adminName">Administrador</strong><small id="adminEmail">—</small></div></div>
+        </div>
       </header>
 
-      <div class="admin-content">
-        <section id="overview" class="admin-section">
-          <div class="hero-admin"><div><span class="kicker">OPERAÇÃO</span><h2>Visão geral</h2><p>Pedidos, servidores, IA, pagamentos e catálogo em uma única operação.</p></div><button id="briefBtn" class="primary">Gerar briefing IA</button></div>
-          <div class="metrics">
-            <article><span>Clientes</span><strong id="metricUsers">—</strong><small id="metricUsersMeta">—</small></article>
-            <article><span>Pedidos</span><strong id="metricOrders">—</strong><small id="metricOrdersMeta">—</small></article>
-            <article><span>Receita</span><strong id="metricRevenue">—</strong><small id="metricRevenueMeta">—</small></article>
-            <article><span>Integrações</span><strong id="metricIntegrations">—</strong><small id="metricIntegrationsMeta">—</small></article>
+      <main class="content">
+        <section id="overview" class="admin-section active-page" data-page="Dashboard">
+          <div class="page-header">
+            <div><div class="breadcrumb"><span>Dashboard</span></div><h1>Dashboard</h1><p>Resumo operacional da plataforma SMM SuperAmplitude.</p></div>
+            <button id="briefBtn" class="btn btn-primary" type="button">✦ Gerar briefing IA</button>
           </div>
-          <div id="briefCard" class="panel brief-card"><p>A IA operacional pode resumir a saúde da plataforma e os pontos de atenção.</p></div>
+
+          <div class="stat-grid">
+            <article class="stat-card"><div class="stat-icon blue">◉</div><div><span>Total de clientes</span><strong id="metricUsers">—</strong><small id="metricUsersMeta">—</small></div></article>
+            <article class="stat-card"><div class="stat-icon violet">◎</div><div><span>Total de pedidos</span><strong id="metricOrders">—</strong><small id="metricOrdersMeta">—</small></div></article>
+            <article class="stat-card"><div class="stat-icon green">$</div><div><span>Receita confirmada</span><strong id="metricRevenue">—</strong><small id="metricRevenueMeta">—</small></div></article>
+            <article class="stat-card"><div class="stat-icon amber">⌁</div><div><span>Integrações ativas</span><strong id="metricIntegrations">—</strong><small id="metricIntegrationsMeta">—</small></div></article>
+          </div>
+
+          <div id="briefCard" class="card briefing-card"><div class="card-header"><div><h3>Resumo inteligente</h3><p>A IA pode analisar a operação e apontar alertas e ações recomendadas.</p></div></div><div class="card-body"><p>Clique em “Gerar briefing IA” para analisar a plataforma.</p></div></div>
         </section>
 
-        <section id="suppliers" class="admin-section">
-          <div class="view-head"><div><span class="kicker">FORNECEDORES</span><h2>Servidores / APIs</h2><p>Cadastre provedores SMM. O pedido do cliente é enviado diretamente ao servidor vinculado e o status volta automaticamente.</p></div></div>
-          <div class="two-columns integration-grid">
-            <form id="supplierForm" class="panel form-card">
-              <h3>Adicionar servidor</h3>
-              <label>Nome do fornecedor<input name="name" placeholder="Ex.: Fornecedor Principal" required></label>
-              <label>Tipo de API<select name="api_type"><option value="smm_v2">SMM Panel API v2</option><option value="generic_json">API JSON genérica</option></select></label>
-              <label>Base URL<input name="base_url" type="url" placeholder="https://api.fornecedor.com/api/v2" required></label>
-              <label>API Key / Token<input name="api_key" type="password" autocomplete="new-password" required></label>
-              <div class="form-row"><label>Endpoint de serviços<input name="services_endpoint" placeholder="/services ou vazio para SMM v2"></label><label>Endpoint de pedidos<input name="orders_endpoint" placeholder="/orders ou vazio para SMM v2"></label></div>
-              <div class="form-row"><label>Endpoint de status<input name="status_endpoint" placeholder="/orders/{id}"></label><label>Endpoint de saldo<input name="balance_endpoint" placeholder="/balance ou vazio para SMM v2"></label></div>
-              <label>Webhook / Callback<input name="webhook_url" placeholder="https://seusite.com/webhook"></label>
-              <div class="form-row"><label>Conversão para BRL<input name="conversion_rate" type="number" min="0.00000001" step="0.00000001" value="1" required></label><label>Margem (%)<input name="markup_percent" type="number" step="0.01" value="30" required></label></div>
-              <div class="form-row"><label>Divisor da tarifa<input name="rate_divisor" type="number" min="1" step="1" value="1000" required><small>API SMM normalmente informa preço por 1.000.</small></label><div><label class="check-label"><input name="auto_price_sync" type="checkbox" value="1" checked> Atualizar preços automaticamente</label><label class="check-label"><input name="is_primary" type="checkbox" value="1"> Servidor principal</label></div></div>
-              <button class="primary" type="submit">Salvar servidor</button>
-              <div id="supplierMessage" class="message hidden"></div>
-            </form>
-            <section class="panel"><div class="panel-head"><div><h3>Servidores cadastrados</h3><p>Saldo, catálogo, preços, conexão e publicação.</p></div></div><div id="suppliersTable" class="table-wrap"><div class="empty">Carregando…</div></div></section>
+        <section id="suppliers" class="admin-section" data-page="API Providers">
+          <div class="page-header">
+            <div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>API Providers</span></div><h1>API Providers</h1><p>Cadastre os servidores fornecedores que recebem os pedidos diretamente via API.</p></div>
           </div>
-        </section>
 
-        <section id="ais" class="admin-section">
-          <div class="view-head"><div><span class="kicker">INTELIGÊNCIA ARTIFICIAL</span><h2>Configurar IAs</h2><p>Cadastre Gemini ou outra IA compatível. A IA usa apenas o texto recebido do fornecedor para limpar, categorizar e organizar o catálogo.</p></div></div>
-          <div class="two-columns integration-grid">
-            <form id="aiIntegrationForm" class="panel form-card">
-              <h3>Adicionar IA</h3>
-              <label>Nome<input name="name" value="Gemini" required></label>
-              <label>Provedor<select name="provider_type"><option value="gemini">Google Gemini</option><option value="openai_compatible">OpenAI compatível</option></select></label>
-              <label>API Key<input name="api_key" type="password" autocomplete="new-password" required></label>
-              <label>Modelo<input name="model" value="gemini-2.5-flash" required></label>
-              <label>Base URL <small>(opcional para Gemini)</small><input name="base_url" placeholder="https://generativelanguage.googleapis.com/v1beta/openai"></label>
-              <label>Prompt base<textarea name="prompt_base" rows="7" placeholder="Organize e categorize os textos recebidos do fornecedor. Não invente serviços nem altere dados de origem."></textarea></label>
-              <div class="form-row"><label class="check-label"><input name="enabled" type="checkbox" value="1" checked> Ativa</label><label class="check-label"><input name="is_primary" type="checkbox" value="1" checked> IA principal</label></div>
-              <button class="primary" type="submit">Salvar IA</button>
-              <div id="aiIntegrationMessage" class="message hidden"></div>
-            </form>
-            <section class="panel"><div class="panel-head"><div><h3>IAs cadastradas</h3><p>Chaves ficam protegidas no servidor e nunca são exibidas novamente.</p></div></div><div id="aiIntegrationsTable" class="table-wrap"><div class="empty">Carregando…</div></div></section>
+          <div class="info-alert"><span>ⓘ</span><p>Compatível com <b>SMM Panel API v2</b> e também com APIs JSON genéricas. Para API v2, normalmente basta informar a URL da API e a chave.</p></div>
+
+          <div class="provider-layout">
+            <div class="card form-card-card">
+              <div class="card-header"><div><h3>Adicionar API Provider</h3><p>Dados de conexão, saldo e regra de preço.</p></div></div>
+              <div class="card-body">
+                <form id="supplierForm" class="matrix-form">
+                  <div class="form-grid two"><label>Nome da API<input name="name" placeholder="Ex.: Fornecedor Principal" required></label><label>Tipo de API<select name="api_type"><option value="smm_v2">SMM Panel API v2</option><option value="generic_json">API JSON genérica</option></select></label></div>
+                  <div class="form-grid two"><label>URL da API<input name="base_url" type="url" placeholder="https://fornecedor.com/api/v2" required></label><label>API Key<input name="api_key" type="password" autocomplete="new-password" placeholder="Cole a chave do fornecedor" required></label></div>
+                  <div class="form-grid two"><label>Endpoint de serviços<input name="services_endpoint" placeholder="vazio para SMM v2"></label><label>Endpoint de pedidos<input name="orders_endpoint" placeholder="vazio para SMM v2"></label></div>
+                  <div class="form-grid two"><label>Endpoint de status<input name="status_endpoint" placeholder="vazio para SMM v2"></label><label>Endpoint de saldo<input name="balance_endpoint" placeholder="vazio para SMM v2"></label></div>
+                  <label>Webhook / Callback<input name="webhook_url" placeholder="https://seusite.com/webhook"></label>
+                  <div class="form-grid three"><label>Conversão para BRL<input name="conversion_rate" type="number" min="0.00000001" step="0.00000001" value="1" required></label><label>Margem (%)<input name="markup_percent" type="number" step="0.01" value="30" required></label><label>Divisor da tarifa<input name="rate_divisor" type="number" min="1" step="1" value="1000" required></label></div>
+                  <div class="switch-row"><label class="switch-label"><input name="auto_price_sync" type="checkbox" value="1" checked><span></span><div><b>Atualizar preços automaticamente</b><small>Recalcula usando custo, conversão e margem.</small></div></label><label class="switch-label"><input name="is_primary" type="checkbox" value="1"><span></span><div><b>Servidor principal</b><small>Prioridade para novos vínculos.</small></div></label></div>
+                  <div class="form-actions"><button class="btn btn-primary" type="submit">Salvar alterações</button></div>
+                  <div id="supplierMessage" class="message hidden"></div>
+                </form>
+              </div>
+            </div>
+
+            <div class="card provider-list-card">
+              <div class="card-header card-header-actions"><div><h3>API Providers cadastrados</h3><p>Saldo, conexão, sincronização, publicação e preços.</p></div><span class="tag">API v2</span></div>
+              <div id="suppliersTable" class="table-wrap"><div class="empty">Carregando fornecedores…</div></div>
+            </div>
           </div>
         </section>
 
-        <section id="catalog-ai" class="admin-section">
-          <div class="view-head"><div><span class="kicker">CATÁLOGO IA</span><h2>Texto do fornecedor → categorias limpas</h2><p>Sincronize um servidor. A IA trabalha somente os textos recebidos, normaliza nomes e organiza os resultados por categoria.</p></div><button id="publishCatalogBtn" class="primary">Publicar catálogo processado</button></div>
-          <section class="panel">
-            <div class="panel-head"><div><h3>Categorias processadas</h3><p>Cards gerados a partir do catálogo do fornecedor.</p></div><select id="catalogSupplierSelect" class="mini-select"><option value="">Selecione um servidor</option></select></div>
-            <div id="categoryCards" class="category-grid"><div class="empty">Selecione e sincronize um servidor.</div></div>
+        <section id="catalog-ai" class="admin-section" data-page="Importar Serviços">
+          <div class="page-header"><div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>Serviços</span><b>/</b><span>Importar</span></div><h1>Importar serviços do fornecedor</h1><p>A IA limpa e categoriza os textos recebidos sem alterar código, preço, mínimo ou máximo do fornecedor.</p></div><button id="publishCatalogBtn" class="btn btn-primary" type="button">Publicar catálogo processado</button></div>
+          <div class="card">
+            <div class="card-header card-header-actions"><div><h3>Catálogo recebido</h3><p>Selecione um fornecedor já sincronizado.</p></div><select id="catalogSupplierSelect" class="form-select compact"><option value="">Selecione um servidor</option></select></div>
+            <div class="card-body"><div id="categoryCards" class="category-grid"><div class="empty">Selecione um servidor e execute “Sincronizar + IA” em API Providers.</div></div></div>
             <div id="catalogTable" class="table-wrap catalog-table"></div>
-          </section>
-        </section>
-
-        <section id="services" class="admin-section">
-          <div class="view-head"><div><span class="kicker">CATÁLOGO PUBLICADO</span><h2>Serviços</h2><p>Todo serviço vendido deve estar vinculado ao servidor e ao código correspondente no fornecedor para envio automático.</p></div></div>
-          <div class="two-columns">
-            <section class="panel"><div id="servicesTable" class="table-wrap"><div class="empty">Carregando serviços…</div></div></section>
-            <form id="serviceForm" class="panel form-card">
-              <h3>Cadastrar serviço manual</h3>
-              <div class="form-row"><label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label></div>
-              <label>Descrição<textarea name="description" rows="3"></textarea></label>
-              <div class="form-row"><label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço por unidade<input name="price_per_unit" type="number" step="0.000001" min="0.000001" required></label></div>
-              <div class="form-row"><label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label></div>
-              <div class="form-row"><label>Servidor<select id="serviceSupplierSelect" name="supplier_id"><option value="">Sem vínculo</option></select></label><label>Código do serviço no fornecedor<input name="provider_code" placeholder="Ex.: 1234"></label></div>
-              <button class="primary" type="submit">Salvar serviço</button>
-              <div id="serviceMessage" class="message hidden"></div>
-            </form>
           </div>
         </section>
 
-        <section id="orders" class="admin-section"><div class="view-head"><div><span class="kicker">PEDIDOS</span><h2>Pedidos</h2><p>Pedidos do cliente são enviados diretamente ao fornecedor e o status retorna automaticamente.</p></div><button id="syncOrdersBtn" class="secondary">Sincronizar status agora</button></div><section class="panel"><div id="ordersTable" class="table-wrap"></div></section></section>
-        <section id="clients" class="admin-section"><div class="view-head"><div><span class="kicker">CLIENTES</span><h2>Clientes</h2></div></div><section class="panel"><div id="clientsTable" class="table-wrap"></div></section></section>
-        <section id="payments" class="admin-section"><div class="view-head"><div><span class="kicker">FINANCEIRO</span><h2>Pagamentos</h2></div></div><section class="panel"><div id="paymentsTable" class="table-wrap"></div></section></section>
-        <section id="ai-decisions" class="admin-section"><div class="view-head"><div><span class="kicker">GOVERNANÇA</span><h2>Decisões da IA</h2></div></div><section class="panel"><div id="aiDecisionsTable" class="table-wrap"></div></section></section>
-        <section id="audit" class="admin-section"><div class="view-head"><div><span class="kicker">AUDITORIA</span><h2>Auditoria</h2></div></div><section class="panel"><div id="auditTable" class="table-wrap"></div></section></section>
-      </div>
-    </main>
+        <section id="services" class="admin-section" data-page="Serviços">
+          <div class="page-header"><div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>Serviços</span></div><h1>Serviços</h1><p>Catálogo publicado para venda. Todo serviço automatizado fica ligado ao fornecedor e ao código de origem.</p></div></div>
+          <div class="split-layout wide-left">
+            <div class="card"><div class="card-header"><div><h3>Lista de serviços</h3><p>Preço final, fornecedor e disponibilidade.</p></div></div><div id="servicesTable" class="table-wrap"><div class="empty">Carregando serviços…</div></div></div>
+            <div class="card form-card-card"><div class="card-header"><div><h3>Adicionar serviço manual</h3><p>Para itens que não vieram da importação.</p></div></div><div class="card-body"><form id="serviceForm" class="matrix-form"><div class="form-grid two"><label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label></div><label>Descrição<textarea name="description" rows="3"></textarea></label><div class="form-grid two"><label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço por unidade<input name="price_per_unit" type="number" step="0.000001" min="0.000001" required></label></div><div class="form-grid two"><label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label></div><div class="form-grid two"><label>Servidor<select id="serviceSupplierSelect" name="supplier_id"><option value="">Sem vínculo</option></select></label><label>Código no fornecedor<input name="provider_code" placeholder="Ex.: 1234"></label></div><div class="form-actions"><button class="btn btn-primary" type="submit">Salvar serviço</button></div><div id="serviceMessage" class="message hidden"></div></form></div></div>
+          </div>
+        </section>
+
+        <section id="ais" class="admin-section" data-page="Integrações de IA">
+          <div class="page-header"><div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>Integrações de IA</span></div><h1>Integrações de IA</h1><p>Cadastre Gemini ou outra API compatível. A IA organiza apenas o conteúdo recebido dos fornecedores.</p></div></div>
+          <div class="provider-layout">
+            <div class="card form-card-card"><div class="card-header"><div><h3>Adicionar IA</h3><p>Chaves são armazenadas criptografadas.</p></div></div><div class="card-body"><form id="aiIntegrationForm" class="matrix-form"><div class="form-grid two"><label>Nome<input name="name" value="Gemini" required></label><label>Provedor<select name="provider_type"><option value="gemini">Google Gemini</option><option value="openai_compatible">OpenAI compatível</option></select></label></div><div class="form-grid two"><label>API Key<input name="api_key" type="password" autocomplete="new-password" required></label><label>Modelo<input name="model" value="gemini-2.5-flash" required></label></div><label>Base URL <small>(opcional para Gemini)</small><input name="base_url" placeholder="https://generativelanguage.googleapis.com/v1beta/openai"></label><label>Prompt base<textarea name="prompt_base" rows="7" placeholder="Limpe e categorize os textos recebidos do fornecedor sem inventar serviços."></textarea></label><div class="switch-row"><label class="switch-label"><input name="enabled" type="checkbox" value="1" checked><span></span><div><b>IA ativa</b><small>Disponível para processamento.</small></div></label><label class="switch-label"><input name="is_primary" type="checkbox" value="1" checked><span></span><div><b>IA principal</b><small>Usada por padrão.</small></div></label></div><div class="form-actions"><button class="btn btn-primary" type="submit">Salvar IA</button></div><div id="aiIntegrationMessage" class="message hidden"></div></form></div></div>
+            <div class="card"><div class="card-header"><div><h3>IAs cadastradas</h3><p>Teste de conexão e controle de ativação.</p></div></div><div id="aiIntegrationsTable" class="table-wrap"><div class="empty">Carregando integrações…</div></div></div>
+          </div>
+        </section>
+
+        <section id="orders" class="admin-section" data-page="Pedidos"><div class="page-header"><div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>Pedidos</span></div><h1>Pedidos</h1><p>O pedido é enviado diretamente ao fornecedor e o status retorna automaticamente.</p></div><button id="syncOrdersBtn" class="btn btn-white" type="button">↻ Sincronizar status</button></div><div class="card"><div class="card-header"><div><h3>Gerenciar pedidos</h3><p>Até 200 registros mais recentes.</p></div></div><div id="ordersTable" class="table-wrap"></div></div></section>
+
+        <section id="clients" class="admin-section" data-page="Clientes"><div class="page-header"><div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>Clientes</span></div><h1>Clientes</h1><p>Contas, saldos e atividade dos usuários.</p></div></div><div class="card"><div class="card-header"><div><h3>Gerenciar clientes</h3><p>Saldo, pedidos, pagamentos e status da conta.</p></div></div><div id="clientsTable" class="table-wrap"></div></div></section>
+
+        <section id="payments" class="admin-section" data-page="Pagamentos"><div class="page-header"><div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>Pagamentos</span></div><h1>Pagamentos</h1><p>Histórico financeiro dos gateways configurados.</p></div></div><div class="card"><div class="card-header"><div><h3>Log de pagamentos</h3><p>Mercado Pago e PayPal.</p></div></div><div id="paymentsTable" class="table-wrap"></div></div></section>
+
+        <section id="ai-decisions" class="admin-section" data-page="Decisões da IA"><div class="page-header"><div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>IA</span><b>/</b><span>Decisões</span></div><h1>Decisões da IA</h1><p>Rastreabilidade e revisão humana das decisões automatizadas.</p></div></div><div class="card"><div class="card-header"><div><h3>Histórico de decisões</h3><p>Resultados, fallback e revisões.</p></div></div><div id="aiDecisionsTable" class="table-wrap"></div></div></section>
+
+        <section id="audit" class="admin-section" data-page="Auditoria"><div class="page-header"><div><div class="breadcrumb"><span>Dashboard</span><b>/</b><span>Auditoria</span></div><h1>Auditoria</h1><p>Registro das ações sensíveis executadas na plataforma.</p></div></div><div class="card"><div class="card-header"><div><h3>Log do sistema</h3><p>Usuário, ação, detalhes e data.</p></div></div><div id="auditTable" class="table-wrap"></div></div></section>
+      </main>
+    </div>
   </div>
 
+  <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
   <script src="/admin/admin.js" defer></script>
+  <script src="/admin/admin-layout.js" defer></script>
 </body>
 </html>
