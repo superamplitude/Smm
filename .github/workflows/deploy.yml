@@ -47,4 +47,5 @@ jobs:
       - name: Verify production health
         run: |
           curl -fsS http://127.0.0.1:3008/health
+          curl -fsS http://127.0.0.1:3008/ready
           curl -fsSI https://smm.superamplitude.com >/dev/null
