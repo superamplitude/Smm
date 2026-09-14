@@ -26,7 +26,11 @@ jobs:
           npm --version
           node --check server.js
           node --check public/app.js
+          node --check public/admin/admin.js
           node --check src/ai.js
+          node --check src/suppliers.js
+          node --check src/secrets.js
+          node --check src/admin-integrations.js
           npm test
 
   deploy:
@@ -49,4 +53,4 @@ jobs:
           curl -fsS http://127.0.0.1:3008/health
           curl -fsS http://127.0.0.1:3008/ready
           curl -fsSI https://smm.superamplitude.com >/dev/null
-          curl -fsS https://smm.superamplitude.com/admin/ | grep -q "Super ADM"
+          curl -fsS https://smm.superamplitude.com/admin/ | grep -q 'Adicionar servidor'
