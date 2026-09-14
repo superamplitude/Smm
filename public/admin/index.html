@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>Super ADM — SMM SuperAmplitude</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div id="loginScreen" class="login-screen">
+    <form id="adminLoginForm" class="login-card">
+      <div class="brand-block"><span class="logo">S</span><div><strong>SMM SuperAmplitude</strong><small>Super Administração</small></div></div>
+      <h1>Acesso administrativo</h1>
+      <p>Entre com uma conta de administrador.</p>
+      <label>E-mail<input name="email" type="email" autocomplete="username" required></label>
+      <label>Senha<input name="password" type="password" autocomplete="current-password" minlength="10" required></label>
+      <button class="primary" type="submit">Entrar no Super ADM</button>
+      <div id="loginMessage" class="message hidden"></div>
+      <a class="back-link" href="/">← Voltar ao portal</a>
+    </form>
+  </div>
+
+  <div id="adminApp" class="admin-app hidden">
+    <aside class="sidebar">
+      <a class="brand-block brand-sidebar" href="/admin/"><span class="logo">S</span><div><strong>SMM</strong><small>SuperAmplitude</small></div></a>
+      <div class="sidebar-label">OPERAÇÃO</div>
+      <nav id="adminNav">
+        <button class="nav-item active" data-view="dashboard"><span>▦</span>Visão geral</button>
+        <button class="nav-item" data-view="orders"><span>◎</span>Pedidos</button>
+        <button class="nav-item" data-view="clients"><span>◉</span>Clientes</button>
+        <button class="nav-item" data-view="payments"><span>◇</span>Pagamentos</button>
+        <button class="nav-item" data-view="services"><span>▤</span>Serviços</button>
+        <button class="nav-item" data-view="ai"><span>✦</span>Inteligência IA</button>
+        <button class="nav-item" data-view="audit"><span>☷</span>Auditoria</button>
+      </nav>
+      <div class="sidebar-foot">
+        <a href="/" class="side-link">Portal público</a>
+        <button id="logoutBtn" class="side-link danger">Sair</button>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="admin-topbar">
+        <button id="mobileMenu" class="menu-button" aria-label="Abrir menu">☰</button>
+        <div><span class="kicker">SUPER ADMIN</span><h1 id="pageTitle">Visão geral</h1></div>
+        <div class="top-actions"><span id="systemStatus" class="system-status">● verificando</span><button id="refreshView" class="secondary">Atualizar</button><div class="admin-user"><strong id="adminName">Administrador</strong><small id="adminEmail">—</small></div></div>
+      </header>
+
+      <section id="view-dashboard" class="view active">
+        <div class="hero-admin"><div><span class="kicker">CENTRO DE COMANDO</span><h2>Operação sob controle.</h2><p>Indicadores, filas, pagamentos e decisões da IA em uma visão administrativa própria.</p></div><button id="briefBtn" class="primary">Gerar briefing da IA</button></div>
+        <div class="metrics">
+          <article><span>Clientes</span><strong id="metricUsers">—</strong><small id="metricUsersMeta">—</small></article>
+          <article><span>Pedidos</span><strong id="metricOrders">—</strong><small id="metricOrdersMeta">—</small></article>
+          <article><span>Receita confirmada</span><strong id="metricRevenue">—</strong><small id="metricRevenueMeta">—</small></article>
+          <article><span>IA operacional</span><strong id="metricAi">—</strong><small id="metricAiMeta">—</small></article>
+        </div>
+        <div id="briefCard" class="panel brief-card"><div><span class="kicker">IA OPERACIONAL</span><h3>Resumo executivo</h3></div><p>Use “Gerar briefing da IA” para analisar a operação atual.</p></div>
+        <div class="dashboard-columns">
+          <section class="panel"><div class="panel-head"><div><h3>Pedidos recentes</h3><p>Últimas movimentações da fila.</p></div><button class="text-button" data-go="orders">Ver todos</button></div><div id="dashboardOrders" class="table-wrap"></div></section>
+          <section class="panel"><div class="panel-head"><div><h3>Pagamentos recentes</h3><p>Confirmações e falhas dos gateways.</p></div><button class="text-button" data-go="payments">Ver todos</button></div><div id="dashboardPayments" class="table-wrap"></div></section>
+        </div>
+      </section>
+
+      <section id="view-orders" class="view"><div class="view-head"><div><span class="kicker">OPERAÇÃO</span><h2>Pedidos</h2><p>Fila completa com atualização de status e devolução controlada.</p></div></div><section class="panel"><div id="ordersTable" class="table-wrap"></div></section></section>
+      <section id="view-clients" class="view"><div class="view-head"><div><span class="kicker">CONTAS</span><h2>Clientes</h2><p>Saldo, uso, situação e bloqueio administrativo.</p></div></div><section class="panel"><div id="clientsTable" class="table-wrap"></div></section></section>
+      <section id="view-payments" class="view"><div class="view-head"><div><span class="kicker">FINANCEIRO</span><h2>Pagamentos</h2><p>Histórico de Mercado Pago e PayPal.</p></div></div><section class="panel"><div id="paymentsTable" class="table-wrap"></div></section></section>
+      <section id="view-services" class="view"><div class="view-head"><div><span class="kicker">CATÁLOGO</span><h2>Serviços</h2><p>Disponibilidade, preço e cadastro de novos serviços.</p></div></div><div class="two-columns"><section class="panel"><div id="servicesTable" class="table-wrap"></div></section><form id="serviceForm" class="panel form-card"><h3>Novo serviço</h3><label>Categoria<input name="category" required></label><label>Nome<input name="name" required></label><label>Descrição<textarea name="description" rows="4"></textarea></label><div class="form-row"><label>Unidade<input name="unit_label" value="unidade" required></label><label>Preço<input name="price_per_unit" type="number" step="0.01" min="0.01" required></label></div><div class="form-row"><label>Mínimo<input name="min_qty" type="number" min="1" value="1"></label><label>Máximo<input name="max_qty" type="number" min="1" value="1000"></label></div><button class="primary" type="submit">Cadastrar serviço</button><div id="serviceMessage" class="message hidden"></div></form></div></section>
+      <section id="view-ai" class="view"><div class="view-head"><div><span class="kicker">GOVERNANÇA</span><h2>Inteligência IA</h2><p>Decisões, fallback e revisão humana.</p></div><button id="briefBtnSecondary" class="primary">Gerar briefing</button></div><section class="panel"><div id="aiTable" class="table-wrap"></div></section></section>
+      <section id="view-audit" class="view"><div class="view-head"><div><span class="kicker">RASTREABILIDADE</span><h2>Auditoria</h2><p>Registro das ações sensíveis da plataforma.</p></div></div><section class="panel"><div id="auditTable" class="table-wrap"></div></section></section>
+    </main>
+  </div>
+
+  <script src="/admin/admin.js" defer></script>
+</body>
+</html>
