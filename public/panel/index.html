@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Painel do Cliente — SMM SuperAmplitude</title>
+  <link rel="stylesheet" href="/panel/panel.css">
+</head>
+<body>
+  <header class="user-header">
+    <div class="shell header-row">
+      <a class="brand" href="/"><span class="brand-mark">S</span><span><strong>SMM</strong><small>SuperAmplitude</small></span></a>
+      <button id="mobileMenuBtn" class="mobile-menu" type="button">☰</button>
+      <nav id="userNav" class="user-nav">
+        <a class="active" href="#dashboard" data-page-link="dashboard">Dashboard</a>
+        <a href="#new-order" data-page-link="new-order">Novo pedido</a>
+        <a href="#orders" data-page-link="orders">Pedidos</a>
+        <a href="#funds" data-page-link="funds">Adicionar saldo</a>
+        <a href="#wallet" data-page-link="wallet">Histórico</a>
+        <a href="#ai" data-page-link="ai">IA</a>
+      </nav>
+      <div class="account-area">
+        <div class="balance-chip"><small>Saldo</small><strong id="headerBalance">R$ 0,00</strong></div>
+        <div class="user-menu"><span id="userAvatar" class="avatar">U</span><div><strong id="headerName">Cliente</strong><small id="headerEmail">—</small></div></div>
+        <a id="adminLink" class="icon-link hidden" href="/admin/" title="Super ADM">⚙</a>
+        <button id="logoutBtn" class="icon-link" type="button" title="Sair">↪</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell panel-main">
+    <div id="paymentBanner" class="notice hidden"></div>
+
+    <section id="dashboard" class="panel-page active-page" data-title="Dashboard">
+      <div class="page-head"><div><div class="breadcrumb"><a href="/">Home</a><span>/</span><b>Dashboard</b></div><h1>Dashboard</h1><p>Resumo da sua conta, saldo e pedidos.</p></div><a class="btn btn-primary" href="#new-order">+ Novo pedido</a></div>
+      <div class="metric-grid">
+        <article class="metric-card"><div class="metric-icon violet">$</div><div><span>Saldo atual</span><strong id="metricBalance">R$ 0,00</strong><small>Disponível para novos pedidos</small></div></article>
+        <article class="metric-card"><div class="metric-icon green">＋</div><div><span>Depósitos</span><strong id="metricDeposits">R$ 0,00</strong><small id="metricDepositsMeta">últimos 7 dias</small></div></article>
+        <article class="metric-card"><div class="metric-icon blue">◎</div><div><span>Pedidos</span><strong id="metricOrders">0</strong><small id="metricOrdersMeta">0 em andamento</small></div></article>
+      </div>
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-head"><div><h3>Pedidos recentes</h3><p>Acompanhamento do fornecedor em tempo real.</p></div><a class="text-link" href="#orders">Ver todos →</a></div>
+          <div id="recentOrders" class="table-wrap"><div class="empty">Carregando…</div></div>
+        </div>
+        <div class="card quick-card">
+          <div class="card-head"><div><h3>Ações rápidas</h3><p>Atalhos da sua operação.</p></div></div>
+          <div class="quick-actions"><a href="#new-order"><span>◎</span><div><b>Novo pedido</b><small>Escolher serviço e enviar</small></div><em>→</em></a><a href="#funds"><span>$</span><div><b>Adicionar saldo</b><small>Mercado Pago ou PayPal</small></div><em>→</em></a><a href="#ai"><span>✦</span><div><b>Recomendação IA</b><small>Usar apenas serviços ativos</small></div><em>→</em></a></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="new-order" class="panel-page" data-title="Novo pedido">
+      <div class="page-head"><div><div class="breadcrumb"><span>Pedidos</span><span>/</span><b>Novo pedido</b></div><h1>Novo pedido</h1><p>O pedido confirmado é enviado diretamente ao fornecedor vinculado ao serviço.</p></div></div>
+      <div class="order-layout">
+        <div class="card">
+          <div class="card-head"><div><h3>Dados do pedido</h3><p>Selecione categoria, serviço, link e quantidade.</p></div></div>
+          <form id="orderForm" class="form-stack">
+            <label>Categoria<select id="categorySelect" name="category"><option value="">Selecione a categoria</option></select></label>
+            <label>Serviço<select id="serviceSelect" name="service_id" required><option value="">Selecione o serviço</option></select></label>
+            <label>Link / URL<input name="target_url" type="url" placeholder="https://..." required></label>
+            <div class="form-grid two"><label>Quantidade<input id="quantityInput" name="quantity" type="number" min="1" value="1" required></label><label>Preço estimado<input id="estimatedPrice" type="text" value="R$ 0,00" disabled></label></div>
+            <label class="confirm-row"><input id="orderConfirm" type="checkbox" required><span>Confirmo que os dados do pedido estão corretos.</span></label>
+            <div class="supplier-flow"><span>Cliente</span><b>→</b><span>SMM</span><b>→</b><span>Fornecedor API</span></div>
+            <button class="btn btn-primary btn-block" type="submit">Enviar pedido ao fornecedor</button>
+            <div id="orderResult" class="message hidden"></div>
+          </form>
+        </div>
+        <aside class="card service-description">
+          <div class="card-head"><div><h3>Descrição do serviço</h3><p>Informações do item selecionado.</p></div></div>
+          <div id="serviceDescription" class="service-empty"><div class="big-icon">▤</div><p>Selecione um serviço para visualizar detalhes, limites e preço.</p></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="orders" class="panel-page" data-title="Pedidos">
+      <div class="page-head"><div><div class="breadcrumb"><span>Pedidos</span><span>/</span><b>Histórico</b></div><h1>Meus pedidos</h1><p>Status local e retorno do fornecedor em uma única visão.</p></div><button id="refreshOrders" class="btn btn-light" type="button">↻ Atualizar</button></div>
+      <div id="orderTabs" class="status-tabs"><button class="active" data-status="all">Todos</button><button data-status="pending">Aguardando</button><button data-status="processing">Processando</button><button data-status="completed">Concluídos</button><button data-status="partial">Parciais</button><button data-status="cancelled">Cancelados</button><button data-status="refunded">Reembolsados</button></div>
+      <div class="card"><div class="table-toolbar"><div><input id="orderSearch" type="search" placeholder="Buscar por pedido, serviço ou link"></div><span id="ordersCount" class="tag">0 pedidos</span></div><div id="ordersTable" class="table-wrap"><div class="empty">Carregando…</div></div></div>
+    </section>
+
+    <section id="funds" class="panel-page" data-title="Adicionar saldo">
+      <div class="page-head"><div><div class="breadcrumb"><span>Financeiro</span><span>/</span><b>Adicionar saldo</b></div><h1>Adicionar saldo</h1><p>Escolha o valor e o gateway. O crédito entra após confirmação do pagamento.</p></div></div>
+      <div class="fund-layout">
+        <div class="card">
+          <div class="card-head"><div><h3>Novo depósito</h3><p>Valor mínimo de R$ 10,00.</p></div></div>
+          <form id="paymentForm" class="form-stack">
+            <label>Valor (R$)<input name="amount" type="number" min="10" max="50000" step="0.01" placeholder="100,00" required></label>
+            <label>Gateway<select name="gateway"><option value="mercadopago">Mercado Pago</option><option value="paypal">PayPal</option></select></label>
+            <div class="gateway-info"><span>🔒</span><p>O checkout é aberto no provedor de pagamento. O saldo só é creditado quando o gateway confirma a transação.</p></div>
+            <button class="btn btn-primary btn-block" type="submit">Continuar para pagamento</button>
+            <div id="paymentResult" class="message hidden"></div>
+          </form>
+        </div>
+        <div class="card"><div class="card-head"><div><h3>Depósitos recentes</h3><p>Histórico dos checkouts da sua conta.</p></div></div><div id="paymentsTable" class="table-wrap"><div class="empty">Carregando…</div></div></div>
+      </div>
+    </section>
+
+    <section id="wallet" class="panel-page" data-title="Histórico">
+      <div class="page-head"><div><div class="breadcrumb"><span>Histórico</span><span>/</span><b>Carteira</b></div><h1>Extrato da carteira</h1><p>Créditos, débitos e devoluções registrados pela plataforma.</p></div><button id="refreshWallet" class="btn btn-light" type="button">↻ Atualizar</button></div>
+      <div class="card"><div id="walletTable" class="table-wrap"><div class="empty">Carregando…</div></div></div>
+    </section>
+
+    <section id="ai" class="panel-page" data-title="IA">
+      <div class="page-head"><div><div class="breadcrumb"><span>Assistente</span><span>/</span><b>IA</b></div><h1>Recomendação por IA</h1><p>A IA só pode recomendar serviços que estejam ativos no catálogo publicado.</p></div></div>
+      <div class="ai-layout">
+        <form id="aiForm" class="card form-stack"><div class="card-head"><div><h3>Descreva seu objetivo</h3><p>Rede, orçamento e resultado esperado.</p></div></div><label>Rede social<input name="network" placeholder="Instagram, TikTok, YouTube..."></label><label>Orçamento disponível (R$)<input name="budget" type="number" min="0" step="1" placeholder="500"></label><label>Objetivo<textarea name="goal" rows="6" placeholder="Ex.: aumentar alcance de um conteúdo já publicado." required></textarea></label><button class="btn btn-primary" type="submit">✦ Gerar recomendação</button></form>
+        <div class="card"><div class="card-head"><div><h3>Resultado</h3><p>Recomendações validadas contra o catálogo.</p></div></div><div id="aiResult" class="ai-result"><div class="service-empty"><div class="big-icon">✦</div><p>Preencha seu objetivo para receber sugestões.</p></div></div></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/panel/panel.js" defer></script>
+</body>
+</html>
