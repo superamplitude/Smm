@@ -203,7 +203,7 @@ async function applyRemoteStatus(orderId, status, raw = {}) {
       await conn.query('UPDATE orders SET status=? WHERE id=?', [status, order.id]);
     }
     await conn.query(
-      'INSERT INTO supplier_order_events (order_id,event_type,remote_order_id,payload) VALUES (?,"status_sync",?,?,?)'.replace(',?,?,?)', ',?,?,?)'),
+      'INSERT INTO supplier_order_events (order_id,event_type,remote_order_id,payload) VALUES (?,"status_sync",?,?)',
       [order.id, order.provider_order_id, JSON.stringify(raw)]
     );
     await conn.commit();
