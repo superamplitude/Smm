@@ -11,6 +11,7 @@ const { analyzeOrder, recommendServices, operationalBrief } = require('./src/ai'
 const {
   createMercadoPagoCheckout,
   createPayPalCheckout,
+  capturePayPalOrder,
   fetchMercadoPagoPayment,
   verifyPayPalWebhook
 } = require('./src/payments');
@@ -172,6 +173,24 @@ app.post('/api/payments/checkout', authRequired, async (req, res) => {
     res.status(201).json({ payment_id: localId, gateway, amount, checkout_url: checkout.checkoutUrl });
   } catch (error) {
     res.status(502).json({ error: 'Não foi possível abrir o checkout do gateway.' });
+  }
+});
+
+app.get('/api/payments/paypal/return', async (req, res) => {
+  const orderId = String(req.query.token || '').trim();
+  if (!orderId) return res.redirect('/?payment=failure');
+  try {
+    const [rows] = await pool.query('SELECT id FROM payments WHERE gateway="paypal" AND external_id=? LIMIT 1', [orderId]);
+    if (!rows.length) return res.redirect('/?payment=failure');
+    const capture = await capturePayPalOrder(orderId);
+    if (capture.status === 'COMPLETED' || capture.name === 'ORDER_ALREADY_CAPTURED') {
+      await creditApprovedPayment(rows[0].id, orderId);
+      return res.redirect('/?payment=success');
+    }
+    return res.redirect('/?payment=pending');
+  } catch (error) {
+    console.error('PayPal return:', error.message);
+    return res.redirect('/?payment=failure');
   }
 });
 
